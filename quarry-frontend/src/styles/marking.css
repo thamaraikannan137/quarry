@@ -1,0 +1,371 @@
+/* Block Marking — aligned with CHTHANAVASAL prototype (styles.css) */
+
+.marking-page {
+  --mk-line: #d5dde5;
+  --mk-muted: #667787;
+  --mk-panel: #f4f6f8;
+  --mk-group: #e8eef4;
+  --mk-ok: #2f8f5b;
+  --mk-warn: #b8860b;
+  --mk-accent: #b07a3a;
+}
+
+.marking-page .page-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.marking-page .page-head h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e2933;
+}
+
+.marking-page .page-head p {
+  margin: 4px 0 0;
+  color: var(--mk-muted);
+  font-size: 0.95rem;
+}
+
+.page-stats-row {
+  margin-bottom: 16px;
+}
+
+.page-stats-row > .ant-col {
+  max-width: 100%;
+}
+
+@media (min-width: 992px) {
+  .page-stats-row > .ant-col {
+    flex: 1 1 0 !important;
+    width: auto !important;
+    max-width: none;
+  }
+}
+
+.marking-register-panel {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid var(--mk-line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(30, 41, 51, 0.06);
+}
+
+.marking-register-panel .panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--mk-line);
+  background: #fff;
+}
+
+.marking-register-panel .panel-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.marking-register-wrap {
+  overflow: auto;
+  max-height: min(70vh, 640px);
+}
+
+.marking-register {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.marking-register.marking-summary {
+  min-width: 760px;
+}
+
+.marking-register th,
+.marking-register td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--mk-line);
+  vertical-align: middle;
+}
+
+.marking-register thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f0f3f6;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--mk-muted);
+  font-weight: 600;
+  text-align: left;
+}
+
+.marking-register .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.marking-register tr.summary-row td {
+  background: #fff;
+  cursor: pointer;
+}
+
+.marking-register tr.summary-row:hover td {
+  background: #f7f9fb;
+}
+
+.marking-register .badge,
+.marking-lines .badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #eef1f4;
+  color: var(--mk-muted);
+}
+
+.marking-register .badge.ok,
+.marking-lines .badge.ok {
+  background: #e5f6ec;
+  color: var(--mk-ok);
+}
+
+.marking-register .badge.warn,
+.marking-lines .badge.warn {
+  background: #fff4d6;
+  color: var(--mk-warn);
+}
+
+.marking-register .badge.danger,
+.marking-lines .badge.danger {
+  background: #fde8e8;
+  color: #b42318;
+}
+
+.marking-register .empty {
+  text-align: center;
+  color: var(--mk-muted);
+  padding: 28px 12px;
+}
+
+/* Add markings page — prototype marking-lines table */
+.marking-add-page .page-head {
+  align-items: flex-start;
+}
+
+.marking-batch-panel {
+  background: #fff;
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.marking-batch-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--mk-line);
+  border-radius: 10px;
+}
+
+.marking-batch-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.marking-batch-invoice {
+  color: var(--mk-muted);
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.marking-batch-invoice strong {
+  color: rgba(0, 0, 0, 0.88);
+  font-size: 1.05rem;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.marking-batch-footer-btns {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.marking-batch-fields {
+  display: grid;
+  grid-template-columns: 148px minmax(200px, 1.4fr) minmax(140px, 1fr);
+  gap: 4px 12px;
+  align-items: start;
+}
+
+.marking-batch-fields .mk-field {
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.marking-batch-fields .mk-party-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.marking-batch-fields .mk-party-row .ant-select {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .marking-batch-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .marking-batch-fields .mk-field-party {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 575px) {
+  .marking-batch-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .marking-batch-fields .mk-field-party {
+    grid-column: auto;
+  }
+
+  .marking-batch-footer,
+  .marking-batch-page-footer {
+    flex-wrap: wrap;
+  }
+
+  .marking-add-page .page-head .marking-batch-footer-btns {
+    width: 100%;
+  }
+
+  .marking-batch-footer-btns {
+    width: 100%;
+  }
+
+  .marking-batch-footer-btns .ant-btn {
+    flex: 1;
+  }
+}
+
+.marking-batch .hint {
+  color: var(--mk-muted);
+  font-size: 0.85rem;
+  margin: 4px 0 8px;
+}
+
+.marking-lines-wrap {
+  border: 1px solid var(--mk-line);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: min(60vh, 560px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.marking-lines {
+  width: 100%;
+  min-width: 980px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.marking-lines .col-block { width: 96px; }
+.marking-lines .col-choice { width: 78px; }
+.marking-lines .col-dim { width: 64px; }
+.marking-lines .col-rate { width: 84px; }
+.marking-lines .col-gst { width: 68px; }
+.marking-lines .col-load { width: 88px; }
+.marking-lines .col-cbm { width: 72px; }
+.marking-lines .col-amt { width: 96px; }
+.marking-lines .col-act { width: 40px; }
+
+.marking-lines th,
+.marking-lines td {
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--mk-line);
+  vertical-align: middle;
+}
+
+.marking-lines th {
+  position: sticky;
+  top: 0;
+  background: #f4f6f8;
+  z-index: 1;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--mk-muted);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.marking-lines th.num,
+.marking-lines td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.marking-lines td .ant-input,
+.marking-lines td .ant-input-number,
+.marking-lines td .ant-select {
+  width: 100%;
+}
+
+.marking-lines .mk-cell-num {
+  width: 100%;
+}
+
+.marking-lines .mk-cell-num .ant-input-number-input {
+  text-align: right;
+  padding-inline: 6px;
+}
+
+.marking-lines .mk-cell-select {
+  width: 100%;
+}
+
+.marking-lines .mk-act {
+  text-align: center;
+  padding-inline: 2px;
+}
+
+.marking-lines tfoot td {
+  background: #eef2f6;
+  border-top: 2px solid var(--mk-line);
+  font-weight: 600;
+}
+
+.marking-batch-actions {
+  margin-top: 10px;
+}
+
+.marking-batch-actions .ant-btn {
+  height: 36px;
+}
