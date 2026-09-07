@@ -117,6 +117,7 @@ export function MarkingsProvider({ children }: { children: ReactNode }) {
           h: row.h,
           rate: row.rate,
           gstPct: row.gstPct,
+          gstType: row.gstType,
           load: row.load,
           markerName: row.markerName,
         })),

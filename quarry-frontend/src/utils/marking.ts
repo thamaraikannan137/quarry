@@ -1,6 +1,7 @@
 import {
   DEFAULT_GST_PCT,
   type BlockMarking,
+  type GstType,
   type MarkingBatchSummary,
 } from '@/types/marking'
 
@@ -46,6 +47,31 @@ export function markGstPct(m: Pick<BlockMarking, 'gstPct'>, fallback = DEFAULT_G
   const n = Number(m.gstPct)
   if (Number.isFinite(n) && n >= 0) return n
   return fallback
+}
+
+export function markGstType(m: Pick<BlockMarking, 'gstType' | 'gstPct'>): GstType {
+  if (m.gstType === 'igst' || m.gstType === 'intra' || m.gstType === 'none' || m.gstType === 'gst') return m.gstType
+  return markGstPct(m, 0) > 0 ? 'intra' : 'none'
+}
+
+export function gstInvoiceHint(gstType: GstType, gstPct: number) {
+  if (gstType === 'none' || !(gstPct > 0)) return ''
+  const rate = formatGstRate(gstPct)
+  if (gstType === 'intra') return `incl. CGST + SGST ${rate}%`
+  if (gstType === 'igst') return `incl. IGST ${rate}%`
+  return `incl. GST ${rate}%`
+}
+
+export function formatGstRate(value: number) {
+  const n = Math.round((Number(value) || 0) * 100) / 100
+  return Number.isInteger(n) ? String(n) : n.toFixed(2)
+}
+
+export function lineGstFields(gstType: GstType, gstPct: number) {
+  return {
+    gstType,
+    gstPct: gstType === 'none' ? 0 : gstPct,
+  }
 }
 
 export function markGross(m: Pick<BlockMarking, 'l' | 'w' | 'h' | 'rate'>) {

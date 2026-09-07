@@ -15,6 +15,7 @@ type AuthContextValue = {
   signIn: (username: string, password: string, remember?: boolean) => SignInResult
   signOut: () => void
   setActiveQuarry: (quarryId: string) => void
+  updateQuarry: (id: string, patch: Partial<Quarry>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -94,6 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const updateQuarry = useCallback((id: string, patch: Partial<Quarry>) => {
+    setQuarries((current) => current.map((quarry) => (quarry.id === id ? { ...quarry, ...patch } : quarry)))
+  }, [])
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -103,8 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       setActiveQuarry,
+      updateQuarry,
     }),
-    [user, quarries, allowedQuarries, activeQuarry, signIn, signOut, setActiveQuarry],
+    [user, quarries, allowedQuarries, activeQuarry, signIn, signOut, setActiveQuarry, updateQuarry],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

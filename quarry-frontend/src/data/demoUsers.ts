@@ -6,12 +6,14 @@ export const DEMO_QUARRIES: Quarry[] = [
     name: 'Chithanavasal',
     code: 'CHITHA',
     place: 'Illuppur / Pudukkottai',
+    gstPct: 18,
   },
   {
     id: 'q_ariyur',
     name: 'Ariyur',
     code: 'ARIYUR',
     place: 'Madurai Dist',
+    gstPct: 18,
   },
 ]
 

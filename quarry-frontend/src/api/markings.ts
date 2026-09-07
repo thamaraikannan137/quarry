@@ -1,12 +1,14 @@
 import { api } from '@/api/http'
-import type { BlockMarking, MarkingBatchDraft, MarkingBatchEditDraft, MarkingUpdateDraft } from '@/types/marking'
+import type { BlockMarking, GstType, MarkingBatchDraft, MarkingBatchEditDraft, MarkingUpdateDraft } from '@/types/marking'
 import { isoDateOnly } from '@/utils/money'
+import { markGstType } from '@/utils/marking'
 
 type ApiBlock = BlockMarking & {
   load?: string
   markerName?: string | null
   notes?: string | null
   markingNo?: string | null
+  gstType?: GstType | string | null
 }
 
 type ApiBatch = {
@@ -34,6 +36,7 @@ function fromApi(row: ApiBlock): BlockMarking {
     h: Number(row.h) || 0,
     rate: Number(row.rate) || 0,
     gstPct: Number(row.gstPct) || 0,
+    gstType: markGstType({ gstType: row.gstType as GstType, gstPct: Number(row.gstPct) || 0 }),
     load: row.load === 'OK' ? 'OK' : 'Pending',
     markerName: row.markerName?.trim() || undefined,
     notes: row.notes?.trim() || undefined,
@@ -61,6 +64,7 @@ export async function createMarkingBatch(quarryId: string, draft: MarkingBatchDr
         h: Number(line.h) || 0,
         rate: Number(line.rate) || 0,
         gstPct: Number(line.gstPct) || 0,
+        gstType: line.gstType,
         markerName: line.markerName?.trim() || draft.markerName || null,
       })),
     }),
@@ -85,6 +89,7 @@ export async function updateMarkingBatch(batchId: string, quarryId: string, draf
         h: Number(line.h) || 0,
         rate: Number(line.rate) || 0,
         gstPct: Number(line.gstPct) || 0,
+        gstType: line.gstType,
         markerName: line.markerName?.trim() || draft.markerName || null,
       })),
     }),
@@ -111,6 +116,7 @@ export async function updateMarkingBlock(id: string, quarryId: string, batch: Bl
             h: draft.h,
             rate: draft.rate,
             gstPct: draft.gstPct,
+            gstType: draft.gstType,
             load: draft.load,
             markerName: draft.markerName,
           }
@@ -123,6 +129,7 @@ export async function updateMarkingBlock(id: string, quarryId: string, batch: Bl
             h: row.h,
             rate: row.rate,
             gstPct: row.gstPct,
+            gstType: row.gstType,
             load: row.load,
             markerName: row.markerName,
           },

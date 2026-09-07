@@ -58,11 +58,6 @@ type FlowRow = { key: string; debit: string | number; credit: string | number }
 type CategoryRow = { name: string; value: string | number }
 type ProductionRow = { blocks: string | number; cbm: string | number }
 
-function timed<T>(label: string, promise: Promise<T>) {
-  console.time(label)
-  return promise.finally(() => console.timeEnd(label))
-}
-
 dashboardRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -100,70 +95,49 @@ dashboardRouter.get(
          FROM "Transaction"
          WHERE "quarryId" = :quarryId`
 
-    console.time('dashboard-total')
-    console.time('dashboard-queries')
     const [quarry, summaryRows, flowRows, categoryRows, recent, productionRows] = await Promise.all([
-      timed('quarry', Quarry.findByPk(quarryId)),
-      timed(
-        'summary',
-        sequelize.query<SummaryRow>(summarySql, { replacements, type: QueryTypes.SELECT }),
+      Quarry.findByPk(quarryId),
+      sequelize.query<SummaryRow>(summarySql, { replacements, type: QueryTypes.SELECT }),
+      sequelize.query<FlowRow>(
+        `SELECT TO_CHAR(DATE_TRUNC('month', "date"), 'YYYY-MM') AS key,
+                COALESCE(SUM(debit), 0) AS debit,
+                COALESCE(SUM(credit), 0) AS credit
+         FROM "Transaction"
+         WHERE "quarryId" = :quarryId
+         GROUP BY DATE_TRUNC('month', "date")
+         ORDER BY DATE_TRUNC('month', "date") ASC`,
+        { replacements: { quarryId }, type: QueryTypes.SELECT },
       ),
-      timed(
-        'flow',
-        sequelize.query<FlowRow>(
-          `SELECT TO_CHAR(DATE_TRUNC('month', "date"), 'YYYY-MM') AS key,
-                  COALESCE(SUM(debit), 0) AS debit,
-                  COALESCE(SUM(credit), 0) AS credit
-           FROM "Transaction"
-           WHERE "quarryId" = :quarryId
-           GROUP BY DATE_TRUNC('month', "date")
-           ORDER BY DATE_TRUNC('month', "date") ASC`,
-          { replacements: { quarryId }, type: QueryTypes.SELECT },
-        ),
+      sequelize.query<CategoryRow>(
+        `SELECT COALESCE(NULLIF(TRIM(head), ''), 'Other') AS name,
+                SUM(debit) AS value
+         FROM "Transaction"
+         WHERE "quarryId" = :quarryId
+           ${periodSql}
+         GROUP BY 1
+         HAVING SUM(debit) > 0
+         ORDER BY value DESC
+         LIMIT 8`,
+        { replacements, type: QueryTypes.SELECT },
       ),
-      timed(
-        'categories',
-        sequelize.query<CategoryRow>(
-          `SELECT COALESCE(NULLIF(TRIM(head), ''), 'Other') AS name,
-                  SUM(debit) AS value
-           FROM "Transaction"
-           WHERE "quarryId" = :quarryId
-             ${periodSql}
-           GROUP BY 1
-           HAVING SUM(debit) > 0
-           ORDER BY value DESC
-           LIMIT 8`,
-          { replacements, type: QueryTypes.SELECT },
-        ),
-      ),
-      timed(
-        'recent',
-        Transaction.findAll({
-          where: getPeriodWhere(quarryId, month),
-          order: [
-            ['date', 'DESC'],
-            ['createdAt', 'DESC'],
-          ],
-          limit: 8,
-        }),
-      ),
-      timed(
-        'production',
-        sequelize.query<ProductionRow>(
-          `SELECT COUNT(*)::int AS blocks,
-                  COALESCE(SUM(${NET_CBM_SQL}), 0) AS cbm
-           FROM "BlockMarking"
-           WHERE "quarryId" = :quarryId
-             ${periodSql}`,
-          { replacements, type: QueryTypes.SELECT },
-        ),
+      Transaction.findAll({
+        where: getPeriodWhere(quarryId, month),
+        order: [
+          ['date', 'DESC'],
+          ['createdAt', 'DESC'],
+        ],
+        limit: 8,
+      }),
+      sequelize.query<ProductionRow>(
+        `SELECT COUNT(*)::int AS blocks,
+                COALESCE(SUM(${NET_CBM_SQL}), 0) AS cbm
+         FROM "BlockMarking"
+         WHERE "quarryId" = :quarryId
+           ${periodSql}`,
+        { replacements, type: QueryTypes.SELECT },
       ),
     ])
-    console.timeEnd('dashboard-queries')
-    if (!quarry) {
-      console.timeEnd('dashboard-total')
-      return notFound(res, 'Quarry not found')
-    }
+    if (!quarry) return notFound(res, 'Quarry not found')
 
     const summary = summaryRows[0] ?? {
       totalEntries: 0,
@@ -186,7 +160,6 @@ dashboardRouter.get(
         credit: roundMoney(Number(row.credit)),
       }))
 
-    console.time('dashboard-response')
     res.json({
       quarryId,
       quarryName: quarry.name,
@@ -216,7 +189,5 @@ dashboardRouter.get(
         cbm: Math.round((Number(production.cbm) || 0) * 1000) / 1000,
       },
     })
-    console.timeEnd('dashboard-response')
-    console.timeEnd('dashboard-total')
   }),
 )

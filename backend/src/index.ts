@@ -7,6 +7,7 @@ import { ensureDefaultQuarries } from './data/defaultQuarries.js'
 import { ensureDefaultStaff } from './data/defaultStaff.js'
 import { ensureDashboardIndexes } from './lib/ensureDashboardIndexes.js'
 import { ensureDateColumns } from './lib/ensureDateColumns.js'
+import { ensureGstSettings } from './lib/ensureGstSettings.js'
 import { ensureMarkingNumbers } from './lib/markingNo.js'
 import { ensureSchema } from './lib/ensureSchema.js'
 import { attendanceRouter } from './routes/attendance.js'
@@ -69,6 +70,7 @@ async function main() {
   await AttendanceMark.update({ status: 'HalfDay' }, { where: { status: 'Holiday' } })
   await ensureMarkingNumbers()
   await ensureDateColumns()
+  await ensureGstSettings()
   await ensureDashboardIndexes()
   await ensureDefaultQuarries()
   await ensureDefaultStaff()

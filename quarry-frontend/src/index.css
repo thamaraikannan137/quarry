@@ -39,3 +39,21 @@ body {
     vertical-align: bottom;
   }
 }
+
+.register-table-card .ant-table-thead > tr > th {
+  background: #f0f3f6 !important;
+  color: #667787;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.register-table-card .ant-table-thead .ant-input,
+.register-table-card .ant-table-thead .ant-select {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.88);
+}

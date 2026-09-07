@@ -7,6 +7,7 @@ import { errorMessage } from '@/api/http'
 import { NumberInput } from '@/components/common'
 import { CustomerFormModal } from '@/components/customers/CustomerFormModal'
 import { PaymentMethodSelect } from '@/components/marking/PaymentMethodSelect'
+import { StaffFormModal } from '@/components/staff/StaffFormModal'
 import { CategorySelect } from '@/components/transactions/CategorySelect'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
@@ -112,13 +113,15 @@ export function VoucherDialog({
   const { partiesForQuarry, customersForQuarry, vendorsForQuarry, addParty } = useParties()
   const { machineryNames, addMachineryName, transactions } = useTransactions()
   const { batchesForQuarry, getBatch } = useMarkings()
-  const { staffForQuarry } = useStaff()
+  const { staffForQuarry, addStaff } = useStaff()
   const isCredit = type === 'Credit'
   const isEdit = Boolean(initial)
   const [form] = Form.useForm<FormValues>()
   const [saving, setSaving] = useState(false)
   const [vendorFormOpen, setVendorFormOpen] = useState(false)
   const [partySelectOpen, setPartySelectOpen] = useState(false)
+  const [staffFormOpen, setStaffFormOpen] = useState(false)
+  const [staffSelectOpen, setStaffSelectOpen] = useState(false)
   const headValue =
     Form.useWatch('head', form) ??
     initial?.head ??
@@ -592,9 +595,34 @@ export function VoucherDialog({
                 allowClear={!advanceField?.required && !lockPerson}
                 showSearch
                 disabled={lockPerson}
+                open={lockPerson ? false : staffSelectOpen}
+                onOpenChange={lockPerson ? undefined : setStaffSelectOpen}
                 placeholder={isSalaryAdvance ? 'Select staff' : 'Select staff or labour gang'}
                 options={advanceOptions}
                 optionFilterProp="label"
+                notFoundContent="No staff yet"
+                dropdownRender={
+                  lockPerson
+                    ? undefined
+                    : (menu) => (
+                        <>
+                          {menu}
+                          <Divider style={{ margin: '8px 0' }} />
+                          <Button
+                            type="text"
+                            icon={<PlusOutlined />}
+                            style={{ width: '100%', textAlign: 'left' }}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setStaffSelectOpen(false)
+                              setStaffFormOpen(true)
+                            }}
+                          >
+                            Add staff
+                          </Button>
+                        </>
+                      )
+                }
               />
             </Form.Item>
           )}
@@ -613,6 +641,19 @@ export function VoucherDialog({
           const party = await addParty({ ...draft, type })
           form.setFieldValue('partyId', party.id)
           message.success(`Vendor “${party.name}” added`)
+        }}
+      />
+    )}
+    {staffFormOpen && (
+      <StaffFormModal
+        open
+        quarryId={quarryId}
+        zIndex={1200}
+        onClose={() => setStaffFormOpen(false)}
+        onSave={async (draft) => {
+          const person = await addStaff(draft)
+          form.setFieldValue('advanceLink', toAdvanceLink(person.id))
+          message.success(`${person.name} added`)
         }}
       />
     )}

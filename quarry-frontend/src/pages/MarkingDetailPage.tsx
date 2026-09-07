@@ -15,14 +15,12 @@ import { useTransactions } from '@/contexts/TransactionsContext'
 import type { BlockMarking } from '@/types/marking'
 import {
   formatCbm,
+  formatGstRate,
   formatMarkingNo,
   formatSize,
-  markCgstAmt,
   markGross,
-  markGstAmt,
   markGstPct,
-  markSgstAmt,
-  markTotal,
+  markGstType,
   splitIntraGst,
   volCbm,
 } from '@/utils/marking'
@@ -39,10 +37,6 @@ import '@/styles/marking.css'
 type BlockRow = BlockMarking & {
   cbm: number
   gross: number
-  gstAmt: number
-  cgstAmt: number
-  sgstAmt: number
-  total: number
   loadStatus: 'OK' | 'Pending'
   tripId?: string
   tripLabel?: string
@@ -67,6 +61,8 @@ export function MarkingDetailPage() {
   const payStatus = batch ? batchPayStatus(batch, transactions) : null
   const payments = batch ? paymentsForBatch(transactions, batch.batchId) : []
   const gstSplit = splitIntraGst(batch?.gstAmt ?? 0)
+  const gstType = batch ? markGstType(batch.blocks[0] ?? { gstType: 'none', gstPct: 0 }) : 'none'
+  const gstPct = batch ? markGstPct(batch.blocks[0] ?? { gstPct: 0 }, 0) : 0
 
   const rows = useMemo(() => {
     if (!batch) return []
@@ -76,10 +72,6 @@ export function MarkingDetailPage() {
         ...block,
         cbm: volCbm(block),
         gross: markGross(block),
-        gstAmt: markGstAmt(block),
-        cgstAmt: markCgstAmt(block),
-        sgstAmt: markSgstAmt(block),
-        total: markTotal(block),
         loadStatus: isBlockDispatched(block.id) ? ('OK' as const) : ('Pending' as const),
         tripId: trip?.id,
         tripLabel: trip ? `${trip.loadNo} · ${trip.lorryNo}` : undefined,
@@ -119,97 +111,76 @@ export function MarkingDetailPage() {
     })
   }
 
+  const colW = 120
+  const snoW = 56
+  const textSort = (a?: string | null, b?: string | null) =>
+    (a || '').localeCompare(b || '', undefined, { numeric: true, sensitivity: 'base' })
   const columns: ColumnsType<BlockRow> = [
+    {
+      title: 'S.No',
+      key: 'sno',
+      width: snoW,
+      align: 'left',
+      render: (_value, _row, index) => index + 1,
+    },
     {
       title: 'Block',
       dataIndex: 'blockNo',
       key: 'blockNo',
+      width: colW,
+      ellipsis: true,
+      sorter: (a, b) => textSort(a.blockNo, b.blockNo),
       render: (value) => <Typography.Text strong>{value}</Typography.Text>,
-    },
-    {
-      title: 'Marker',
-      dataIndex: 'markerName',
-      key: 'markerName',
-      width: 120,
-      render: (value?: string) => value || '—',
     },
     {
       title: 'Choice',
       dataIndex: 'choice',
       key: 'choice',
-      width: 80,
+      width: colW,
+      ellipsis: true,
+      sorter: (a, b) => textSort(a.choice, b.choice),
       render: (value: string) => <Tag>{value || '—'}</Tag>,
     },
     {
-      title: 'Size (L×W×H)',
+      title: 'Buyer gross measurement',
       key: 'size',
-      width: 130,
+      width: colW,
+      ellipsis: true,
+      sorter: (a, b) => a.l - b.l || a.w - b.w || a.h - b.h,
       render: (_value, row) => formatSize(row),
     },
     {
-      title: 'CBM',
+      title: 'Net CBM',
       dataIndex: 'cbm',
       key: 'cbm',
-      width: 90,
+      width: colW,
       align: 'right',
+      sorter: (a, b) => a.cbm - b.cbm,
       render: (value: number) => formatCbm(value),
     },
     {
       title: 'Rate',
       dataIndex: 'rate',
       key: 'rate',
-      width: 100,
+      width: colW,
       align: 'right',
+      sorter: (a, b) => a.rate - b.rate,
       render: (value: number) => money(value),
     },
     {
       title: 'Gross',
       dataIndex: 'gross',
       key: 'gross',
-      width: 110,
+      width: colW,
       align: 'right',
+      sorter: (a, b) => a.gross - b.gross,
       render: (value: number) => money(value),
-    },
-    {
-      title: 'CGST',
-      key: 'cgst',
-      width: 96,
-      align: 'right',
-      render: (_value, row) => (
-        <span>
-          {money(row.cgstAmt)}
-          <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-            {markGstPct(row) / 2}%
-          </Typography.Text>
-        </span>
-      ),
-    },
-    {
-      title: 'SGST',
-      key: 'sgst',
-      width: 96,
-      align: 'right',
-      render: (_value, row) => (
-        <span>
-          {money(row.sgstAmt)}
-          <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-            {markGstPct(row) / 2}%
-          </Typography.Text>
-        </span>
-      ),
-    },
-    {
-      title: 'Total',
-      dataIndex: 'total',
-      key: 'total',
-      width: 110,
-      align: 'right',
-      render: (value: number) => <Typography.Text strong>{money(value)}</Typography.Text>,
     },
     {
       title: 'Load',
       key: 'load',
-      width: 100,
+      width: colW,
+      sorter: (a, b) => textSort(a.loadStatus, b.loadStatus),
       render: (_value, row) => (
         <Tag color={row.loadStatus === 'OK' ? 'success' : 'warning'}>{row.loadStatus}</Tag>
       ),
@@ -217,7 +188,9 @@ export function MarkingDetailPage() {
     {
       title: 'Lorry / trip',
       key: 'trip',
-      width: 160,
+      width: colW,
+      ellipsis: true,
+      sorter: (a, b) => textSort(a.tripLabel, b.tripLabel),
       render: (_value, row) =>
         row.tripId ? (
           <Link to={`/loads/${row.tripId}`} onClick={(event) => event.stopPropagation()}>
@@ -233,7 +206,7 @@ export function MarkingDetailPage() {
     columns.push({
       title: '',
       key: 'actions',
-      width: 80,
+      width: 48,
       render: (_value, row) => (
         <Button
           type="text"
@@ -335,12 +308,22 @@ export function MarkingDetailPage() {
         </Descriptions.Item>
         <Descriptions.Item label="Date">{formatDate(batch.date)}</Descriptions.Item>
         <Descriptions.Item label="Blocks">{batch.blockCount}</Descriptions.Item>
-        <Descriptions.Item label="Total CBM">
+        <Descriptions.Item label="Total net CBM">
           <Typography.Text strong>{formatCbm(batch.cbm)}</Typography.Text>
         </Descriptions.Item>
         <Descriptions.Item label="Gross">{money(batch.gross)}</Descriptions.Item>
-        <Descriptions.Item label="CGST">{money(gstSplit.cgst)}</Descriptions.Item>
-        <Descriptions.Item label="SGST">{money(gstSplit.sgst)}</Descriptions.Item>
+        {gstType === 'intra' && (
+          <>
+            <Descriptions.Item label={`CGST ${formatGstRate(gstPct / 2)}%`}>{money(gstSplit.cgst)}</Descriptions.Item>
+            <Descriptions.Item label={`SGST ${formatGstRate(gstPct / 2)}%`}>{money(gstSplit.sgst)}</Descriptions.Item>
+          </>
+        )}
+        {gstType === 'igst' && (
+          <Descriptions.Item label={`IGST ${formatGstRate(gstPct)}%`}>{money(batch.gstAmt)}</Descriptions.Item>
+        )}
+        {gstType === 'gst' && (
+          <Descriptions.Item label={`GST ${formatGstRate(gstPct)}%`}>{money(batch.gstAmt)}</Descriptions.Item>
+        )}
         <Descriptions.Item label="Final total">
           <Typography.Text strong style={{ color: '#389e0d' }}>
             {money(batch.total)}
@@ -354,38 +337,90 @@ export function MarkingDetailPage() {
         </div>
         <div style={{ padding: 12 }}>
           <Table<BlockRow>
+            className="mk-block-lines-table"
             size="small"
             rowKey="id"
             pagination={false}
-            scroll={{ x: 1200 }}
+            tableLayout="fixed"
+            showSorterTooltip={false}
+            scroll={{ x: canEdit ? snoW + colW * 8 + 48 : snoW + colW * 8 }}
             dataSource={rows}
             columns={columns}
-            summary={() => (
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={4}>
-                  <Typography.Text strong>Final total</Typography.Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={4} align="right">
-                  <Typography.Text strong>{formatCbm(batch.cbm)}</Typography.Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={5} />
-                <Table.Summary.Cell index={6} align="right">
-                  <Typography.Text strong>{money(batch.gross)}</Typography.Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={7} align="right">
-                  <Typography.Text strong>{money(gstSplit.cgst)}</Typography.Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={8} align="right">
-                  <Typography.Text strong>{money(gstSplit.sgst)}</Typography.Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={9} align="right">
-                  <Typography.Text strong style={{ color: '#389e0d' }}>
-                    {money(batch.total)}
-                  </Typography.Text>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={10} colSpan={canEdit ? 3 : 2} />
-              </Table.Summary.Row>
-            )}
+            summary={() => {
+              const rest = canEdit ? 3 : 2
+              return (
+                <>
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={4}>
+                      <Typography.Text strong>Gross total</Typography.Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={4} align="right">
+                      <Typography.Text strong>{formatCbm(batch.cbm)}</Typography.Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={5} />
+                    <Table.Summary.Cell index={6} align="right">
+                      <Typography.Text strong>{money(batch.gross)}</Typography.Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={7} colSpan={rest} />
+                  </Table.Summary.Row>
+                  {gstType === 'intra' && (
+                    <>
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0} colSpan={6} align="right">
+                          CGST {formatGstRate(gstPct / 2)}%
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={6} align="right">
+                          {money(gstSplit.cgst)}
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={7} colSpan={rest} />
+                      </Table.Summary.Row>
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0} colSpan={6} align="right">
+                          SGST {formatGstRate(gstPct / 2)}%
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={6} align="right">
+                          {money(gstSplit.sgst)}
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={7} colSpan={rest} />
+                      </Table.Summary.Row>
+                    </>
+                  )}
+                  {gstType === 'igst' && (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={6} align="right">
+                        IGST {formatGstRate(gstPct)}%
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={6} align="right">
+                        {money(batch.gstAmt)}
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={7} colSpan={rest} />
+                    </Table.Summary.Row>
+                  )}
+                  {gstType === 'gst' && (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={6} align="right">
+                        GST {formatGstRate(gstPct)}%
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={6} align="right">
+                        {money(batch.gstAmt)}
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={7} colSpan={rest} />
+                    </Table.Summary.Row>
+                  )}
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={6} align="right">
+                      <Typography.Text strong>Final total</Typography.Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={6} align="right">
+                      <Typography.Text strong style={{ color: '#389e0d' }}>
+                        {money(batch.total)}
+                      </Typography.Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={7} colSpan={rest} />
+                  </Table.Summary.Row>
+                </>
+              )
+            }}
           />
         </div>
       </div>

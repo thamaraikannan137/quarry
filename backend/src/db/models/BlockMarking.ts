@@ -21,6 +21,8 @@ export interface BlockMarkingAttributes {
   h: number
   rate: number
   gstPct: number
+  /** none | intra (CGST+SGST) | igst */
+  gstType: string
   markerName: string | null
   notes: string | null
   createdAt: Date
@@ -29,7 +31,7 @@ export interface BlockMarkingAttributes {
 
 type BlockMarkingCreation = Optional<
   BlockMarkingAttributes,
-  'id' | 'markingNo' | 'choice' | 'gstPct' | 'markerName' | 'notes' | 'createdAt' | 'updatedAt'
+  'id' | 'markingNo' | 'choice' | 'gstPct' | 'gstType' | 'markerName' | 'notes' | 'createdAt' | 'updatedAt'
 >
 
 export class BlockMarking
@@ -49,6 +51,7 @@ export class BlockMarking
   declare h: number
   declare rate: number
   declare gstPct: number
+  declare gstType: string
   declare markerName: string | null
   declare notes: string | null
   declare createdAt: Date
@@ -73,6 +76,7 @@ BlockMarking.init(
     h: { type: DataTypes.DOUBLE, allowNull: false },
     rate: { type: DataTypes.DOUBLE, allowNull: false },
     gstPct: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 18 },
+    gstType: { type: DataTypes.STRING, allowNull: false, defaultValue: 'intra' },
     markerName: { type: DataTypes.STRING, allowNull: true },
     notes: { type: DataTypes.TEXT, allowNull: true },
     createdAt: DataTypes.DATE,

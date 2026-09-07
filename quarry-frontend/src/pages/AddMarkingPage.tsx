@@ -1,28 +1,30 @@
-import { ArrowLeftOutlined, DeleteOutlined, PlusOutlined, UserAddOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import {
   AutoComplete,
   Button,
   DatePicker,
   Form,
   Input,
-  Select,
   Space,
   message,
 } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 
 import { CustomerFormModal } from '@/components/customers/CustomerFormModal'
 import { NumberInput } from '@/components/common'
 import { BlockChoiceSelect } from '@/components/marking/BlockChoiceSelect'
+import { GstModeBar } from '@/components/marking/GstModeBar'
+import { MarkingTotals } from '@/components/marking/MarkingTotals'
+import { PartySelect } from '@/components/marking/PartySelect'
 import { errorMessage } from '@/api/http'
 import { useAuth } from '@/contexts/AuthContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { DEMO_MARKERS } from '@/data/demoMarkers'
-import { DEFAULT_GST_PCT, emptyMarkingLine, type MarkingLineDraft } from '@/types/marking'
-import { dimsToCm, formatCbm, hasNetDims, markGross, markGstAmt, markTotal, volCbm } from '@/utils/marking'
+import { emptyMarkingLine, quarryGstPct, type GstType, type MarkingLineDraft } from '@/types/marking'
+import { dimsToCm, formatCbm, gstInvoiceHint, hasNetDims, lineGstFields, markGross, markGstAmt, volCbm } from '@/utils/marking'
 import { formatDate, money, newId } from '@/utils/money'
 
 import '@/styles/marking.css'
@@ -35,12 +37,12 @@ type HeaderValues = {
 
 type LineRow = MarkingLineDraft & { key: string }
 
-function blankLine(): LineRow {
-  return { ...emptyMarkingLine(), key: newId('ln') }
+function blankLine(gstType: GstType = 'intra', gstPct = quarryGstPct()): LineRow {
+  return { ...emptyMarkingLine('I', gstPct, gstType), key: newId('ln') }
 }
 
-function blankLines(count: number): LineRow[] {
-  return Array.from({ length: count }, () => blankLine())
+function blankLines(count: number, gstType: GstType = 'intra', gstPct = quarryGstPct()): LineRow[] {
+  return Array.from({ length: count }, () => blankLine(gstType, gstPct))
 }
 
 export function AddMarkingPage() {
@@ -49,7 +51,9 @@ export function AddMarkingPage() {
   const { customersForQuarry, addParty, getParty } = useParties()
   const { markingsForQuarry, addBatch } = useMarkings()
   const [form] = Form.useForm<HeaderValues>()
-  const [lines, setLines] = useState<LineRow[]>(() => blankLines(1))
+  const [gstType, setGstType] = useState<GstType>('intra')
+  const [gstPct, setGstPct] = useState(quarryGstPct)
+  const [lines, setLines] = useState<LineRow[]>(() => blankLines(1, 'intra'))
   const [saving, setSaving] = useState(false)
   const [partyFormOpen, setPartyFormOpen] = useState(false)
 
@@ -72,13 +76,22 @@ export function AddMarkingPage() {
       .filter((name): name is string => Boolean(name))
   }, [markingsForQuarry, quarryId])
 
+  const defaultGstPct = quarryGstPct(activeQuarry)
+  const gstTypeRef = useRef(gstType)
+  gstTypeRef.current = gstType
+
   useEffect(() => {
     form.setFieldsValue({
       date: dayjs(),
-      partyId: buyers[0]?.id,
+      partyId: undefined,
       markerName: undefined,
     })
-  }, [form, buyers[0]?.id])
+  }, [form, activeQuarry?.id])
+
+  useEffect(() => {
+    setGstPct(defaultGstPct)
+    setLines((current) => current.map((line) => ({ ...line, ...lineGstFields(gstTypeRef.current, defaultGstPct) })))
+  }, [activeQuarry?.id, defaultGstPct])
 
   const totals = useMemo(() => {
     return lines.reduce(
@@ -89,7 +102,7 @@ export function AddMarkingPage() {
           cbm: acc.cbm + volCbm(line),
           gross: acc.gross + markGross(line),
           gst: acc.gst + markGstAmt(line),
-          total: acc.total + markTotal(line),
+          total: acc.total + markGross(line) + markGstAmt(line),
           count: acc.count + (hasBlock ? 1 : 0),
           sized: acc.sized + 1,
         }
@@ -100,6 +113,21 @@ export function AddMarkingPage() {
 
   const updateLine = (key: string, patch: Partial<MarkingLineDraft>) => {
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)))
+  }
+
+  const setGstMode = (next: GstType) => {
+    const pct = next === 'none' ? 0 : gstPct > 0 ? gstPct : defaultGstPct
+    setGstType(next)
+    if (next !== 'none' && gstPct <= 0) setGstPct(defaultGstPct)
+    setLines((current) => current.map((line) => ({ ...line, ...lineGstFields(next, pct) })))
+  }
+
+  const setGstPercent = (nextPct: number) => {
+    const pct = Number.isFinite(nextPct) && nextPct >= 0 ? nextPct : 0
+    setGstPct(pct)
+    if (gstType !== 'none') {
+      setLines((current) => current.map((line) => ({ ...line, ...lineGstFields(gstType, pct) })))
+    }
   }
 
   const goBack = () => navigate('/marking')
@@ -125,7 +153,8 @@ export function AddMarkingPage() {
             l: cm.l,
             w: cm.w,
             h: cm.h,
-            gstPct: line.gstPct || DEFAULT_GST_PCT,
+            gstPct: gstType === 'none' ? 0 : gstPct,
+            gstType,
           }
         }),
       }
@@ -151,18 +180,22 @@ export function AddMarkingPage() {
   return (
     <div className="marking-page marking-add-page">
       <div className="page-head">
-        <div>
-          <Space size={8} align="center" style={{ marginBottom: 4 }}>
-            <Button type="text" icon={<ArrowLeftOutlined />} onClick={goBack} aria-label="Back to register" />
-            <h1 style={{ margin: 0 }}>Add markings</h1>
-          </Space>
+        <div className="page-head-title">
+          <div className="page-head-title-row">
+            <Space size={8} align="center">
+              <Button type="text" icon={<ArrowLeftOutlined />} onClick={goBack} aria-label="Back to register" />
+              <h1 style={{ margin: 0 }}>Add markings</h1>
+            </Space>
+          </div>
           <p>One party · one date · multiple blocks for {activeQuarry.name}.</p>
         </div>
-        <div className="marking-batch-footer-btns">
-          <Button onClick={goBack}>Cancel</Button>
-          <Button type="primary" loading={saving} disabled={!buyers.length} onClick={handleSave}>
-            Save
-          </Button>
+        <div className="page-head-actions">
+          <div className="marking-batch-footer-btns">
+            <Button onClick={goBack}>Cancel</Button>
+            <Button type="primary" loading={saving} disabled={!buyers.length} onClick={handleSave}>
+              Save
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -172,19 +205,13 @@ export function AddMarkingPage() {
             <Form.Item name="date" label="Date" rules={[{ required: true }]} className="mk-field mk-field-date">
               <DatePicker style={{ width: '100%' }} format="DD-MM-YYYY" />
             </Form.Item>
-            <Form.Item label="Party" required className="mk-field mk-field-party">
-              <div className="mk-party-row">
-                <Form.Item name="partyId" noStyle rules={[{ required: true, message: 'Select party' }]}>
-                  <Select
-                    style={{ width: '100%' }}
-                    showSearch
-                    optionFilterProp="label"
-                    placeholder="Select party"
-                    options={buyers.map((party) => ({ value: party.id, label: party.name }))}
-                  />
-                </Form.Item>
-                <Button icon={<UserAddOutlined />} onClick={() => setPartyFormOpen(true)} />
-              </div>
+            <Form.Item
+              name="partyId"
+              label="Party"
+              rules={[{ required: true, message: 'Select party' }]}
+              className="mk-field mk-field-party"
+            >
+              <PartySelect style={{ width: '100%' }} parties={buyers} onAddParty={() => setPartyFormOpen(true)} />
             </Form.Item>
             <Form.Item
               name="markerName"
@@ -207,47 +234,52 @@ export function AddMarkingPage() {
           </div>
         </Form>
 
+        <div className="mk-lines-head">
+          <h2>
+            Block lines
+            <span className="mk-lines-count">
+              {totals.count} block{totals.count === 1 ? '' : 's'}
+            </span>
+          </h2>
+          <GstModeBar gstType={gstType} gstPct={gstPct} onTypeChange={setGstMode} onPctChange={setGstPercent} />
+        </div>
+
         <div className="marking-lines-wrap">
           <table className="marking-lines">
             <colgroup>
+              <col className="col-sno" />
               <col className="col-block" />
               <col className="col-choice" />
               <col className="col-dim" />
               <col className="col-dim" />
               <col className="col-dim" />
-              <col className="col-rate" />
-              <col className="col-gst" />
               <col className="col-cbm" />
-              <col className="col-amt" />
-              <col className="col-amt" />
+              <col className="col-rate" />
               <col className="col-amt" />
               <col className="col-act" />
             </colgroup>
             <thead>
               <tr>
+                <th>S.No</th>
                 <th>Block no</th>
                 <th>Choice</th>
                 <th className="num">L</th>
                 <th className="num">W</th>
                 <th className="num">H</th>
+                <th className="num">Net CBM</th>
                 <th className="num">Rate</th>
-                <th className="num">GST%</th>
-                <th className="num">CBM</th>
                 <th className="num">Gross</th>
-                <th className="num">GST</th>
-                <th className="num">Total</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {lines.map((row) => {
+              {lines.map((row, index) => {
                 const ready = hasNetDims(row)
                 const cbm = ready ? volCbm(row) : 0
                 const gross = ready ? markGross(row) : 0
-                const gst = ready ? markGstAmt(row) : 0
-                const total = ready ? markTotal(row) : 0
                 return (
                   <tr key={row.key}>
+                    <td>{index + 1}</td>
                     <td>
                       <Input
                         size="small"
@@ -291,6 +323,7 @@ export function AddMarkingPage() {
                         onChange={(n) => updateLine(row.key, { h: n == null ? 0 : Number(n) })}
                       />
                     </td>
+                    <td className="num">{ready ? formatCbm(cbm) : '—'}</td>
                     <td>
                       <NumberInput
                         size="small"
@@ -300,21 +333,7 @@ export function AddMarkingPage() {
                         onChange={(n) => updateLine(row.key, { rate: n == null ? 0 : Number(n) })}
                       />
                     </td>
-                    <td>
-                      <NumberInput
-                        decimal
-                        size="small"
-                        className="mk-cell-num"
-                        min={0}
-                        step={0.01}
-                        value={row.gstPct}
-                        onChange={(n) => updateLine(row.key, { gstPct: n == null ? 0 : Number(n) })}
-                      />
-                    </td>
-                    <td className="num">{ready ? formatCbm(cbm) : '—'}</td>
                     <td className="num">{ready ? money(gross) : '—'}</td>
-                    <td className="num">{ready ? money(gst) : '—'}</td>
-                    <td className="num">{ready ? money(total) : '—'}</td>
                     <td className="mk-act">
                       <Button
                         type="text"
@@ -323,7 +342,7 @@ export function AddMarkingPage() {
                         icon={<DeleteOutlined />}
                         onClick={() =>
                           setLines((current) =>
-                            current.length <= 1 ? blankLines(1) : current.filter((line) => line.key !== row.key),
+                            current.length <= 1 ? blankLines(1, gstType, gstPct) : current.filter((line) => line.key !== row.key),
                           )
                         }
                       />
@@ -332,32 +351,33 @@ export function AddMarkingPage() {
                 )
               })}
             </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={7}>
-                  <strong>Total</strong>
-                  {totals.count ? ` · ${totals.count} block${totals.count === 1 ? '' : 's'}` : ''}
-                </td>
-                <td className="num">{totals.sized ? formatCbm(totals.cbm) : '0.000'}</td>
-                <td className="num">{totals.sized ? money(totals.gross) : '—'}</td>
-                <td className="num">{totals.sized ? money(totals.gst) : '—'}</td>
-                <td className="num">{totals.sized ? money(totals.total) : '—'}</td>
-                <td />
-              </tr>
-            </tfoot>
           </table>
         </div>
 
         <div className="marking-batch-actions">
-          <Button type="dashed" block icon={<PlusOutlined />} onClick={() => setLines((current) => [...current, blankLine()])}>
+          <Button type="dashed" block icon={<PlusOutlined />} onClick={() => setLines((current) => [...current, blankLine(gstType, gstPct)])}>
             Add line
           </Button>
         </div>
+
+        <MarkingTotals
+          gstType={gstType}
+          gstPct={gstPct}
+          cbm={totals.cbm}
+          gross={totals.gross}
+          gstAmt={totals.gst}
+          total={totals.total}
+          count={totals.count}
+          sized={Boolean(totals.sized)}
+        />
       </div>
 
       <div className="marking-batch-page-footer">
         <div className="marking-batch-invoice">
           Invoice total <strong>{totals.sized ? money(totals.total) : '—'}</strong>
+          {gstInvoiceHint(gstType, gstPct) ? (
+            <span className="mk-invoice-hint">{gstInvoiceHint(gstType, gstPct)}</span>
+          ) : null}
         </div>
         <div className="marking-batch-footer-btns">
           <Button onClick={goBack}>Cancel</Button>

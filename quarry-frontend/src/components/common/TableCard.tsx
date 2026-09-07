@@ -11,16 +11,18 @@ type TableCardProps = {
 
 /** Standard feature-page panel: titled card with toolbar `extra` and a table body. */
 export function TableCard({ title, extra, children, cardProps }: TableCardProps) {
+  const { className, styles, ...rest } = cardProps ?? {}
   return (
     <Card
       title={title}
       extra={extra}
+      className={['register-table-card', className].filter(Boolean).join(' ')}
       styles={{
         body: { paddingTop: 12, overflowX: 'auto' },
         header: { flexWrap: 'wrap', gap: 8, rowGap: 12 },
-        ...cardProps?.styles,
+        ...styles,
       }}
-      {...cardProps}
+      {...rest}
     >
       {children}
     </Card>

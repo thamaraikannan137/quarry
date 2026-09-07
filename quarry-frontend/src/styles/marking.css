@@ -32,6 +32,123 @@
   font-size: 0.95rem;
 }
 
+.marking-add-page .page-head-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.marking-add-page .page-head-title-row h1 .ant-tag,
+.marking-add-page .page-head-title-row h1 .ant-typography {
+  margin-inline-start: 8px;
+  font-size: 0.95rem;
+  vertical-align: middle;
+}
+
+.marking-add-page .page-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.mk-lines-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 10px;
+}
+
+.mk-lines-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e2933;
+}
+
+.mk-lines-count {
+  margin-left: 8px;
+  color: var(--mk-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.mk-gst-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mk-gst-toggle .ant-segmented-item-label {
+  font-weight: 600;
+}
+
+.mk-gst-kind .ant-radio-button-wrapper {
+  font-weight: 600;
+}
+
+.mk-gst-kind .ant-radio-button-wrapper-checked {
+  color: #1677ff;
+  border-color: #1677ff;
+}
+
+.mk-gst-pct-input {
+  width: 92px;
+}
+
+.mk-totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.mk-totals-card {
+  min-width: 280px;
+  max-width: 360px;
+}
+
+.mk-totals-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 32px;
+  padding: 3px 0;
+  color: var(--mk-muted);
+  font-size: 0.92rem;
+}
+
+.mk-totals-row strong,
+.mk-totals-row span:last-child {
+  color: #1e2933;
+  font-variant-numeric: tabular-nums;
+}
+
+.mk-totals-final {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--mk-line);
+  font-size: 1.05rem;
+  color: #1e2933;
+}
+
+.mk-totals-final span:first-child,
+.mk-totals-final strong {
+  font-weight: 700;
+  color: #1e2933;
+}
+
+.mk-invoice-hint {
+  color: var(--mk-muted);
+  font-size: 0.88rem;
+  margin-left: 6px;
+}
+
 .page-stats-row {
   margin-bottom: 16px;
 }
@@ -259,6 +376,7 @@
     flex-wrap: wrap;
   }
 
+  .marking-add-page .page-head .page-head-actions,
   .marking-add-page .page-head .marking-batch-footer-btns {
     width: 100%;
   }
@@ -294,6 +412,7 @@
   font-size: 0.88rem;
 }
 
+.marking-lines .col-sno { width: 44px; }
 .marking-lines .col-block { width: 96px; }
 .marking-lines .col-choice { width: 78px; }
 .marking-lines .col-dim { width: 64px; }
@@ -362,10 +481,37 @@
   font-weight: 600;
 }
 
+.marking-lines tfoot tr + tr td {
+  border-top: 1px solid var(--mk-line);
+  font-weight: 500;
+}
+
+.marking-lines tfoot tr:last-child td {
+  font-weight: 700;
+}
+
+.marking-lines tfoot td.mk-tax-label {
+  text-align: right;
+}
+
 .marking-batch-actions {
   margin-top: 10px;
 }
 
 .marking-batch-actions .ant-btn {
   height: 36px;
+}
+
+.mk-block-lines-table .ant-table-thead > tr > th {
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.mk-block-lines-table .ant-table-tbody > tr > td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mk-block-lines-table .ant-table-cell-fix-right {
+  text-align: center;
 }

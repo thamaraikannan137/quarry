@@ -15,6 +15,8 @@ import { nextMarkingNo } from '../lib/markingNo.js'
 
 export const markingsRouter = Router()
 
+const gstTypeSchema = z.enum(['none', 'intra', 'igst', 'gst'])
+
 const lineSchema = z.object({
   id: z.string().optional(),
   blockNo: z.string().min(1),
@@ -24,6 +26,7 @@ const lineSchema = z.object({
   h: z.number().positive(),
   rate: z.number().nonnegative(),
   gstPct: z.number().nonnegative().default(18),
+  gstType: gstTypeSchema.default('intra'),
   markerName: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 })
@@ -57,6 +60,7 @@ function serializeBlock(block: BlockMarking) {
     h: block.h,
     rate: block.rate,
     gstPct: block.gstPct,
+    gstType: block.gstType || (block.gstPct > 0 ? 'intra' : 'none'),
     markerName: block.markerName,
     notes: block.notes,
     createdAt: block.createdAt,
@@ -183,7 +187,8 @@ markingsRouter.post(
             w: line.w,
             h: line.h,
             rate: line.rate,
-            gstPct: line.gstPct,
+            gstPct: line.gstType === 'none' ? 0 : line.gstPct,
+            gstType: line.gstType,
             markerName: line.markerName ?? markerName ?? null,
             notes: line.notes ?? null,
           },
@@ -245,7 +250,8 @@ markingsRouter.put(
           w: line.w,
           h: line.h,
           rate: line.rate,
-          gstPct: line.gstPct,
+          gstPct: line.gstType === 'none' ? 0 : line.gstPct,
+          gstType: line.gstType,
           markerName: line.markerName ?? markerName ?? null,
           notes: line.notes ?? null,
         }

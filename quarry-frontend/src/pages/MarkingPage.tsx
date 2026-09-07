@@ -177,7 +177,7 @@ export function MarkingPage() {
                 <th>Party</th>
                 <th>Marker</th>
                 <th className="num">Blocks</th>
-                <th className="num">CBM</th>
+                <th className="num">Net CBM</th>
                 <th className="num">Total</th>
                 <th className="num">Pending</th>
                 <th>Load</th>

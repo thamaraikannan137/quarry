@@ -15,6 +15,7 @@ export type Quarry = {
   name: string
   code: string
   place: string
+  gstPct: number
 }
 
 export type SessionUser = {

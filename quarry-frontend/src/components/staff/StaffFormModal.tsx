@@ -9,6 +9,7 @@ type StaffFormModalProps = {
   open: boolean
   quarryId: string
   initial?: Staff | null
+  zIndex?: number
   onClose: () => void
   onSave: (draft: StaffDraft) => void | Promise<void>
 }
@@ -26,7 +27,7 @@ type FormValues = {
   notes: string
 }
 
-export function StaffFormModal({ open, quarryId, initial = null, onClose, onSave }: StaffFormModalProps) {
+export function StaffFormModal({ open, quarryId, initial = null, zIndex, onClose, onSave }: StaffFormModalProps) {
   const [form] = Form.useForm<FormValues>()
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(initial)
@@ -89,6 +90,7 @@ export function StaffFormModal({ open, quarryId, initial = null, onClose, onSave
       onOk={handleOk}
       confirmLoading={saving}
       okText={isEdit ? 'Update' : 'Save'}
+      zIndex={zIndex}
       destroyOnHidden
       width={640}
     >
