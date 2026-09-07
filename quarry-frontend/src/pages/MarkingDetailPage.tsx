@@ -13,7 +13,19 @@ import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
 import type { BlockMarking } from '@/types/marking'
-import { formatCbm, formatMarkingNo, formatSize, markGross, markGstAmt, markGstPct, markTotal, volCbm } from '@/utils/marking'
+import {
+  formatCbm,
+  formatMarkingNo,
+  formatSize,
+  markCgstAmt,
+  markGross,
+  markGstAmt,
+  markGstPct,
+  markSgstAmt,
+  markTotal,
+  splitIntraGst,
+  volCbm,
+} from '@/utils/marking'
 import {
   batchBalance,
   batchPayStatus,
@@ -28,6 +40,8 @@ type BlockRow = BlockMarking & {
   cbm: number
   gross: number
   gstAmt: number
+  cgstAmt: number
+  sgstAmt: number
   total: number
   loadStatus: 'OK' | 'Pending'
   tripId?: string
@@ -52,6 +66,7 @@ export function MarkingDetailPage() {
   const balance = batch ? batchBalance(batch, transactions) : 0
   const payStatus = batch ? batchPayStatus(batch, transactions) : null
   const payments = batch ? paymentsForBatch(transactions, batch.batchId) : []
+  const gstSplit = splitIntraGst(batch?.gstAmt ?? 0)
 
   const rows = useMemo(() => {
     if (!batch) return []
@@ -62,6 +77,8 @@ export function MarkingDetailPage() {
         cbm: volCbm(block),
         gross: markGross(block),
         gstAmt: markGstAmt(block),
+        cgstAmt: markCgstAmt(block),
+        sgstAmt: markSgstAmt(block),
         total: markTotal(block),
         loadStatus: isBlockDispatched(block.id) ? ('OK' as const) : ('Pending' as const),
         tripId: trip?.id,
@@ -154,15 +171,29 @@ export function MarkingDetailPage() {
       render: (value: number) => money(value),
     },
     {
-      title: 'GST',
-      key: 'gst',
-      width: 110,
+      title: 'CGST',
+      key: 'cgst',
+      width: 96,
       align: 'right',
       render: (_value, row) => (
         <span>
-          {money(row.gstAmt)}
+          {money(row.cgstAmt)}
           <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
-            {markGstPct(row)}%
+            {markGstPct(row) / 2}%
+          </Typography.Text>
+        </span>
+      ),
+    },
+    {
+      title: 'SGST',
+      key: 'sgst',
+      width: 96,
+      align: 'right',
+      render: (_value, row) => (
+        <span>
+          {money(row.sgstAmt)}
+          <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+            {markGstPct(row) / 2}%
           </Typography.Text>
         </span>
       ),
@@ -308,7 +339,8 @@ export function MarkingDetailPage() {
           <Typography.Text strong>{formatCbm(batch.cbm)}</Typography.Text>
         </Descriptions.Item>
         <Descriptions.Item label="Gross">{money(batch.gross)}</Descriptions.Item>
-        <Descriptions.Item label="GST">{money(batch.gstAmt)}</Descriptions.Item>
+        <Descriptions.Item label="CGST">{money(gstSplit.cgst)}</Descriptions.Item>
+        <Descriptions.Item label="SGST">{money(gstSplit.sgst)}</Descriptions.Item>
         <Descriptions.Item label="Final total">
           <Typography.Text strong style={{ color: '#389e0d' }}>
             {money(batch.total)}
@@ -325,7 +357,7 @@ export function MarkingDetailPage() {
             size="small"
             rowKey="id"
             pagination={false}
-            scroll={{ x: 1100 }}
+            scroll={{ x: 1200 }}
             dataSource={rows}
             columns={columns}
             summary={() => (
@@ -341,14 +373,17 @@ export function MarkingDetailPage() {
                   <Typography.Text strong>{money(batch.gross)}</Typography.Text>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={7} align="right">
-                  <Typography.Text strong>{money(batch.gstAmt)}</Typography.Text>
+                  <Typography.Text strong>{money(gstSplit.cgst)}</Typography.Text>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={8} align="right">
+                  <Typography.Text strong>{money(gstSplit.sgst)}</Typography.Text>
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={9} align="right">
                   <Typography.Text strong style={{ color: '#389e0d' }}>
                     {money(batch.total)}
                   </Typography.Text>
                 </Table.Summary.Cell>
-                <Table.Summary.Cell index={9} colSpan={canEdit ? 3 : 2} />
+                <Table.Summary.Cell index={10} colSpan={canEdit ? 3 : 2} />
               </Table.Summary.Row>
             )}
           />

@@ -5,6 +5,7 @@ import {
   type AttendanceMonth,
   type AttendanceStatus,
 } from '@/types/attendance'
+import { isoDateOnly } from '@/utils/money'
 
 type ApiMark = AttendanceMark & { status: string }
 
@@ -13,7 +14,7 @@ function fromMark(row: ApiMark): AttendanceMark {
     id: row.id,
     quarryId: row.quarryId,
     staffId: row.staffId,
-    date: row.date,
+    date: isoDateOnly(row.date),
     status: normalizeAttendanceStatus(row.status),
   }
 }

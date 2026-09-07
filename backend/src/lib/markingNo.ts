@@ -28,7 +28,14 @@ export async function nextMarkingNo(quarryId: string, transaction?: Transaction)
 
 /** Add MK-001 style numbers to existing batches (same idea as LD-001 on loads). */
 export async function ensureMarkingNumbers() {
-  await sequelize.query('ALTER TABLE "BlockMarking" ADD COLUMN IF NOT EXISTS "markingNo" VARCHAR')
+  const [columns] = await sequelize.query(
+    `SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'BlockMarking' AND column_name = 'markingNo'
+     LIMIT 1`,
+  )
+  if (!Array.isArray(columns) || columns.length === 0) {
+    await sequelize.query('ALTER TABLE "BlockMarking" ADD COLUMN IF NOT EXISTS "markingNo" VARCHAR')
+  }
 
   const missing = await BlockMarking.findAll({
     where: {

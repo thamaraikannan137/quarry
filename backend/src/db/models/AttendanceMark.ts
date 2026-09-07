@@ -1,5 +1,6 @@
 import { DataTypes, Model, type Optional } from 'sequelize'
 
+import { dateonlyAttribute } from '../../lib/isoDate.js'
 import { newId } from '../../lib/marking.js'
 import { sequelize } from '../sequelize.js'
 
@@ -36,7 +37,7 @@ AttendanceMark.init(
     id: { type: DataTypes.STRING, primaryKey: true },
     quarryId: { type: DataTypes.STRING, allowNull: false },
     staffId: { type: DataTypes.STRING, allowNull: false },
-    date: { type: DataTypes.STRING, allowNull: false },
+    date: dateonlyAttribute('date'),
     status: { type: DataTypes.STRING, allowNull: false },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,

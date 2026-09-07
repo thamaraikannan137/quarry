@@ -16,7 +16,10 @@ export const DEFAULT_QUARRIES = [
 ] as const
 
 export async function ensureDefaultQuarries() {
+  const existing = await Quarry.findAll({ attributes: ['id'] })
+  const have = new Set(existing.map((row) => row.id))
   for (const quarry of DEFAULT_QUARRIES) {
-    await Quarry.upsert({ ...quarry })
+    if (have.has(quarry.id)) continue
+    await Quarry.create({ ...quarry })
   }
 }

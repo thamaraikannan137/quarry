@@ -9,6 +9,7 @@ import {
   sequelize,
 } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
+import { isoDateSchema } from '../lib/isoDate.js'
 import { markGross, markGstAmt, markTotal, newId, volCbm } from '../lib/marking.js'
 import { nextMarkingNo } from '../lib/markingNo.js'
 
@@ -28,7 +29,7 @@ const lineSchema = z.object({
 })
 
 const batchSchema = z.object({
-  date: z.string().min(1),
+  date: isoDateSchema,
   partyId: z.string().min(1),
   quarryId: z.string().min(1),
   markerName: z.string().optional().nullable(),

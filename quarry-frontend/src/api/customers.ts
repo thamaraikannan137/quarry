@@ -1,5 +1,6 @@
 import { api } from '@/api/http'
 import type { Party, PartyDraft } from '@/types/party'
+import { isoDateOnly } from '@/utils/money'
 
 type ApiParty = Party & { quarryId: string }
 
@@ -16,7 +17,7 @@ function fromApi(row: ApiParty): Party {
     billingAddress: row.billingAddress ?? '',
     shippingAddress: row.shippingAddress ?? '',
     openingBalance: Number(row.openingBalance) || 0,
-    asOf: row.asOf ?? '',
+    asOf: isoDateOnly(row.asOf),
     creditLimit: Number(row.creditLimit) || 0,
     contact: row.contact ?? '',
     notes: row.notes ?? '',

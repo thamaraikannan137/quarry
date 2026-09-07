@@ -23,6 +23,19 @@ export function netVolCbm(l: number, w: number, h: number) {
   return (nl * nw * nh) / 1e6
 }
 
+/** Postgres expression matching `netVolCbm` (metre-like sizes, then 5 cm allowance). */
+export const NET_CBM_SQL = `
+CASE
+  WHEN l > 0 AND w > 0 AND h > 0 AND l < 20 AND w < 20 AND h < 20
+  THEN GREATEST(0, l * 100 - ${NET_ALLOWANCE_CM})
+     * GREATEST(0, w * 100 - ${NET_ALLOWANCE_CM})
+     * GREATEST(0, h * 100 - ${NET_ALLOWANCE_CM}) / 1000000.0
+  ELSE GREATEST(0, l - ${NET_ALLOWANCE_CM})
+     * GREATEST(0, w - ${NET_ALLOWANCE_CM})
+     * GREATEST(0, h - ${NET_ALLOWANCE_CM}) / 1000000.0
+END
+`.trim()
+
 export function markGross(l: number, w: number, h: number, rate: number) {
   return Math.round(volCbm(l, w, h) * Number(rate) * 100) / 100
 }

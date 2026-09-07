@@ -20,7 +20,7 @@ import { errorMessage } from '@/api/http'
 import { getDashboard, type DashboardPayload } from '@/api/dashboard'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Transaction } from '@/types/transaction'
-import { formatDate, money } from '@/utils/money'
+import { formatDate, money, monthLabel, todayISO } from '@/utils/money'
 
 const CREDIT_COLOR = '#389e0d'
 const DEBIT_COLOR = '#cf1322'
@@ -93,7 +93,7 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const { user, activeQuarry } = useAuth()
   const canEdit = user?.role !== 'Viewer'
-  const [month, setMonth] = useState('all')
+  const [month, setMonth] = useState(() => todayISO().slice(0, 7))
   const [data, setData] = useState<DashboardPayload>(EMPTY_DASHBOARD)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -129,6 +129,13 @@ export function DashboardPage() {
   const axisColor = token.colorTextSecondary
   const gridColor = token.colorBorderSecondary
   const markingPeriod = data.production
+  const monthOptions = [
+    { value: 'all', label: 'All months' },
+    ...(month !== 'all' && !data.months.some((item) => item.key === month)
+      ? [{ value: month, label: monthLabel(month) }]
+      : []),
+    ...data.months.map((item) => ({ value: item.key, label: item.label })),
+  ]
 
   return (
     <Spin spinning={loading}>
@@ -159,10 +166,7 @@ export function DashboardPage() {
             style={{ minWidth: 160 }}
             value={month}
             onChange={setMonth}
-            options={[
-              { value: 'all', label: 'All months' },
-              ...data.months.map((item) => ({ value: item.key, label: item.label })),
-            ]}
+            options={monthOptions}
           />
           <Button type="primary" icon={<SwapOutlined />} onClick={() => navigate('/transactions')}>
             All Transactions

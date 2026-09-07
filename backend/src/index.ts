@@ -5,7 +5,10 @@ import type { NextFunction, Request, Response } from 'express'
 import { AttendanceMark, sequelize } from './db/models/index.js'
 import { ensureDefaultQuarries } from './data/defaultQuarries.js'
 import { ensureDefaultStaff } from './data/defaultStaff.js'
+import { ensureDashboardIndexes } from './lib/ensureDashboardIndexes.js'
+import { ensureDateColumns } from './lib/ensureDateColumns.js'
 import { ensureMarkingNumbers } from './lib/markingNo.js'
+import { ensureSchema } from './lib/ensureSchema.js'
 import { attendanceRouter } from './routes/attendance.js'
 import { customersRouter } from './routes/customers.js'
 import { dashboardRouter } from './routes/dashboard.js'
@@ -62,9 +65,11 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 async function main() {
   await sequelize.authenticate()
-  await sequelize.sync()
+  await ensureSchema()
   await AttendanceMark.update({ status: 'HalfDay' }, { where: { status: 'Holiday' } })
   await ensureMarkingNumbers()
+  await ensureDateColumns()
+  await ensureDashboardIndexes()
   await ensureDefaultQuarries()
   await ensureDefaultStaff()
   app.listen(port, () => {

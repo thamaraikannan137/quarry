@@ -11,12 +11,13 @@ import {
   sequelize,
 } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
+import { isoDateSchema } from '../lib/isoDate.js'
 import { newId, volCbm } from '../lib/marking.js'
 
 export const loadsRouter = Router()
 
 const tripSchema = z.object({
-  date: z.string().min(1),
+  date: isoDateSchema,
   quarryId: z.string().min(1),
   lorryNo: z.string().min(1),
   fromLocation: z.string().min(1),

@@ -1,5 +1,6 @@
 import { DataTypes, Model, type Optional } from 'sequelize'
 
+import { dateonlyAttribute } from '../../lib/isoDate.js'
 import { newId } from '../../lib/marking.js'
 import { sequelize } from '../sequelize.js'
 
@@ -15,7 +16,7 @@ export interface PartyAttributes {
   billingAddress: string
   shippingAddress: string
   openingBalance: number
-  asOf: string
+  asOf: string | null
   creditLimit: number
   contact: string
   notes: string
@@ -56,7 +57,7 @@ export class Party extends Model<PartyAttributes, PartyCreation> implements Part
   declare billingAddress: string
   declare shippingAddress: string
   declare openingBalance: number
-  declare asOf: string
+  declare asOf: string | null
   declare creditLimit: number
   declare contact: string
   declare notes: string
@@ -78,7 +79,7 @@ Party.init(
     billingAddress: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
     shippingAddress: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
     openingBalance: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
-    asOf: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    asOf: dateonlyAttribute('asOf', { allowNull: true }),
     creditLimit: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
     contact: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
     notes: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },

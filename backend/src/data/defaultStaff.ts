@@ -18,10 +18,10 @@ export const DEFAULT_STAFF = [
 ] as const
 
 export async function ensureDefaultStaff() {
-  await Staff.destroy({ where: { kind: 'Worker' } })
+  const existing = await Staff.findAll({ attributes: ['id'] })
+  const have = new Set(existing.map((row) => row.id))
   for (const row of DEFAULT_STAFF) {
-    const existing = await Staff.findByPk(row.id)
-    if (existing) continue
+    if (have.has(row.id)) continue
     await Staff.create({
       ...row,
       phone: '',

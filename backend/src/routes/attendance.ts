@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { AttendanceMark, Quarry, Staff } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound } from '../lib/http.js'
+import { isoDateSchema } from '../lib/isoDate.js'
 
 export const attendanceRouter = Router()
 
@@ -63,7 +64,7 @@ attendanceRouter.get(
 const markSchema = z.object({
   quarryId: z.string().min(1),
   staffId: z.string().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: isoDateSchema,
   status: z.enum(INPUT_STATUSES).nullable(),
 })
 
@@ -98,7 +99,7 @@ attendanceRouter.put(
 
 const daySchema = z.object({
   quarryId: z.string().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: isoDateSchema,
   status: z.enum(INPUT_STATUSES),
 })
 

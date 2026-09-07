@@ -1,5 +1,6 @@
 import { DataTypes, Model, type Optional } from 'sequelize'
 
+import { dateonlyAttribute } from '../../lib/isoDate.js'
 import { newId } from '../../lib/marking.js'
 import { sequelize } from '../sequelize.js'
 import type { DispatchTripBlock } from './DispatchTripBlock.js'
@@ -45,7 +46,7 @@ DispatchTrip.init(
     id: { type: DataTypes.STRING, primaryKey: true },
     loadNo: { type: DataTypes.STRING, allowNull: false },
     quarryId: { type: DataTypes.STRING, allowNull: false },
-    date: { type: DataTypes.STRING, allowNull: false },
+    date: dateonlyAttribute('date'),
     lorryNo: { type: DataTypes.STRING, allowNull: false },
     fromLocation: { type: DataTypes.STRING, allowNull: false },
     toLocation: { type: DataTypes.STRING, allowNull: false },
@@ -60,6 +61,7 @@ DispatchTrip.init(
       { unique: true, fields: ['quarryId', 'loadNo'] },
       { fields: ['quarryId'] },
       { fields: ['date'] },
+      { name: 'idx_dispatch_trip_quarry_date', fields: ['quarryId', 'date'] },
     ],
   },
 )

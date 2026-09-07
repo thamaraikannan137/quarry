@@ -1,11 +1,12 @@
 import { api } from '@/api/http'
 import type { Transaction, TxnType, VoucherDraft } from '@/types/transaction'
+import { isoDateOnly } from '@/utils/money'
 
 function fromApi(row: Transaction & { createdAt?: string }): Transaction {
   return {
     id: row.id,
     quarryId: row.quarryId,
-    date: row.date,
+    date: isoDateOnly(row.date),
     type: row.type,
     head: row.head,
     particulars: row.particulars ?? '',

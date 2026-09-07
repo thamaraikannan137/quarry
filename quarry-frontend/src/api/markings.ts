@@ -1,5 +1,6 @@
 import { api } from '@/api/http'
 import type { BlockMarking, MarkingBatchDraft, MarkingBatchEditDraft, MarkingUpdateDraft } from '@/types/marking'
+import { isoDateOnly } from '@/utils/money'
 
 type ApiBlock = BlockMarking & {
   load?: string
@@ -24,7 +25,7 @@ function fromApi(row: ApiBlock): BlockMarking {
     batchId: row.batchId,
     markingNo: row.markingNo?.trim() || row.batchId,
     quarryId: row.quarryId,
-    date: row.date,
+    date: isoDateOnly(row.date),
     partyId: row.partyId,
     blockNo: row.blockNo,
     choice: row.choice,

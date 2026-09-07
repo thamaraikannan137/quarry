@@ -3,12 +3,13 @@ import { z } from 'zod'
 
 import { BlockMarking, Party, Quarry, Transaction } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
+import { isoDateSchema } from '../lib/isoDate.js'
 
 export const transactionsRouter = Router()
 
 const voucherSchema = z.object({
   quarryId: z.string().min(1),
-  date: z.string().min(1),
+  date: isoDateSchema,
   type: z.enum(['Debit', 'Credit']),
   head: z.string().min(1),
   particulars: z.string().trim().min(1, 'Description is required'),
@@ -131,7 +132,7 @@ transactionsRouter.put(
       .partial()
       .extend({
         quarryId: z.string().min(1).optional(),
-        date: z.string().min(1).optional(),
+        date: isoDateSchema.optional(),
         type: z.enum(['Debit', 'Credit']).optional(),
         head: z.string().min(1).optional(),
       })

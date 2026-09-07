@@ -1,5 +1,6 @@
 import { api } from '@/api/http'
 import type { Transaction } from '@/types/transaction'
+import { isoDateOnly } from '@/utils/money'
 
 export type DashboardMonth = {
   key: string
@@ -47,5 +48,9 @@ export type DashboardPayload = {
 export async function getDashboard(quarryId: string, month = 'all') {
   const params = new URLSearchParams({ quarryId })
   if (month && month !== 'all') params.set('month', month)
-  return api<DashboardPayload>(`/api/dashboard?${params.toString()}`)
+  const payload = await api<DashboardPayload>(`/api/dashboard?${params.toString()}`)
+  return {
+    ...payload,
+    recent: payload.recent.map((row) => ({ ...row, date: isoDateOnly(row.date) })),
+  }
 }

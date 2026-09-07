@@ -1,5 +1,6 @@
 import { DataTypes, Model, type Optional } from 'sequelize'
 
+import { dateonlyAttribute } from '../../lib/isoDate.js'
 import { newId } from '../../lib/marking.js'
 import { sequelize } from '../sequelize.js'
 
@@ -67,7 +68,7 @@ Transaction.init(
   {
     id: { type: DataTypes.STRING, primaryKey: true },
     quarryId: { type: DataTypes.STRING, allowNull: false },
-    date: { type: DataTypes.STRING, allowNull: false },
+    date: dateonlyAttribute('date'),
     type: { type: DataTypes.STRING, allowNull: false },
     head: { type: DataTypes.STRING, allowNull: false },
     particulars: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
@@ -92,6 +93,7 @@ Transaction.init(
       { fields: ['markingBatchId'] },
       { fields: ['date'] },
       { fields: ['head'] },
+      { name: 'idx_transaction_quarry_date', fields: ['quarryId', 'date'] },
     ],
   },
 )

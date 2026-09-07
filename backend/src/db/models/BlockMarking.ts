@@ -1,5 +1,6 @@
 import { DataTypes, Model, type Optional } from 'sequelize'
 
+import { dateonlyAttribute } from '../../lib/isoDate.js'
 import { newId } from '../../lib/marking.js'
 import { sequelize } from '../sequelize.js'
 import type { DispatchTripBlock } from './DispatchTripBlock.js'
@@ -64,7 +65,7 @@ BlockMarking.init(
     markingNo: { type: DataTypes.STRING, allowNull: true },
     quarryId: { type: DataTypes.STRING, allowNull: false },
     partyId: { type: DataTypes.STRING, allowNull: false },
-    date: { type: DataTypes.STRING, allowNull: false },
+    date: dateonlyAttribute('date'),
     blockNo: { type: DataTypes.STRING, allowNull: false },
     choice: { type: DataTypes.STRING, allowNull: false, defaultValue: 'I' },
     l: { type: DataTypes.DOUBLE, allowNull: false },
@@ -85,6 +86,7 @@ BlockMarking.init(
       { fields: ['partyId'] },
       { fields: ['batchId'] },
       { fields: ['date'] },
+      { name: 'idx_block_marking_quarry_date', fields: ['quarryId', 'date'] },
     ],
   },
 )

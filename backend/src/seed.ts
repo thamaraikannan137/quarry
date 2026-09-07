@@ -1,10 +1,12 @@
 import { sequelize } from './db/models/index.js'
 import { DEFAULT_QUARRIES, ensureDefaultQuarries } from './data/defaultQuarries.js'
 import { DEFAULT_STAFF, ensureDefaultStaff } from './data/defaultStaff.js'
+import { ensureDateColumns } from './lib/ensureDateColumns.js'
 
 async function main() {
   await sequelize.authenticate()
   await sequelize.sync()
+  await ensureDateColumns()
   await ensureDefaultQuarries()
   await ensureDefaultStaff()
 

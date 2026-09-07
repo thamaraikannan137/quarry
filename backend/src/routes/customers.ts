@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { BlockMarking, Party, Quarry } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
+import { optionalIsoDateSchema } from '../lib/isoDate.js'
 
 export const customersRouter = Router()
 
@@ -18,7 +19,7 @@ const partySchema = z.object({
   billingAddress: z.string().optional().default(''),
   shippingAddress: z.string().optional().default(''),
   openingBalance: z.number().optional().default(0),
-  asOf: z.string().optional().default(''),
+  asOf: optionalIsoDateSchema,
   creditLimit: z.number().optional().default(0),
   contact: z.string().optional().default(''),
   notes: z.string().optional().default(''),
@@ -27,7 +28,7 @@ const partySchema = z.object({
 
 function toCustomer(row: Party) {
   const json = row.toJSON()
-  return { ...json, quarryIds: [json.quarryId] }
+  return { ...json, asOf: json.asOf ?? '', quarryIds: [json.quarryId] }
 }
 
 customersRouter.get(

@@ -11,14 +11,27 @@ export function money(value: number) {
 /** Display dates as day-month-year, e.g. 10 Aug 2026. Storage stays YYYY-MM-DD. */
 export const DATE_DISPLAY = 'DD MMM YYYY'
 
-export function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-  const parsed = dayjs(value)
-  return parsed.isValid() ? parsed.format(DATE_DISPLAY) : value
+export function isoDateOnly(value: string | Date | null | undefined) {
+  if (!value) return ''
+  if (typeof value === 'string') {
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(value.trim())
+    return match ? match[1] : ''
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10)
+  }
+  return ''
 }
 
-export function monthKey(date: string) {
-  return date.slice(0, 7)
+export function formatDate(value: string | Date | null | undefined) {
+  const iso = isoDateOnly(value)
+  if (!iso) return '—'
+  const parsed = dayjs(iso)
+  return parsed.isValid() ? parsed.format(DATE_DISPLAY) : iso
+}
+
+export function monthKey(date: string | Date | null | undefined) {
+  return isoDateOnly(date).slice(0, 7)
 }
 
 export function monthLabel(key: string) {

@@ -56,6 +56,22 @@ export function markGstAmt(m: Pick<BlockMarking, 'l' | 'w' | 'h' | 'rate' | 'gst
   return markGross(m) * (markGstPct(m, fallbackGst) / 100)
 }
 
+/** Intra-state split: CGST + SGST = GST, rounded to paise. */
+export function splitIntraGst(gstAmt: number) {
+  const total = Number(gstAmt) || 0
+  const cgst = Math.round((total / 2) * 100) / 100
+  const sgst = Math.round((total - cgst) * 100) / 100
+  return { cgst, sgst }
+}
+
+export function markCgstAmt(m: Pick<BlockMarking, 'l' | 'w' | 'h' | 'rate' | 'gstPct'>, fallbackGst = DEFAULT_GST_PCT) {
+  return splitIntraGst(markGstAmt(m, fallbackGst)).cgst
+}
+
+export function markSgstAmt(m: Pick<BlockMarking, 'l' | 'w' | 'h' | 'rate' | 'gstPct'>, fallbackGst = DEFAULT_GST_PCT) {
+  return splitIntraGst(markGstAmt(m, fallbackGst)).sgst
+}
+
 export function markTotal(m: Pick<BlockMarking, 'l' | 'w' | 'h' | 'rate' | 'gstPct'>, fallbackGst = DEFAULT_GST_PCT) {
   return markGross(m) + markGstAmt(m, fallbackGst)
 }

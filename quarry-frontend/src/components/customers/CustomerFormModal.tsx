@@ -60,7 +60,7 @@ export function CustomerFormModal({
         billingAddress: initial.billingAddress,
         shippingAddress: initial.shippingAddress,
         openingBalance: initial.openingBalance,
-        asOf: dayjs(initial.asOf),
+        asOf: initial.asOf && dayjs(initial.asOf).isValid() ? dayjs(initial.asOf) : dayjs(),
         creditLimit: initial.creditLimit,
         type: initial.type,
         contact: initial.contact,

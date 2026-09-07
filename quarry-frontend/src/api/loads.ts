@@ -1,5 +1,6 @@
 import { api } from '@/api/http'
 import type { DispatchTrip, DispatchTripDraft } from '@/types/dispatch'
+import { isoDateOnly } from '@/utils/money'
 
 type ApiTrip = DispatchTrip
 
@@ -8,7 +9,7 @@ function fromApi(row: ApiTrip): DispatchTrip {
     id: row.id,
     loadNo: row.loadNo,
     quarryId: row.quarryId,
-    date: row.date,
+    date: isoDateOnly(row.date),
     lorryNo: row.lorryNo,
     fromLocation: row.fromLocation,
     toLocation: row.toLocation,
