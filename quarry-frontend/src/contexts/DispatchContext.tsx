@@ -1,60 +1,46 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { message } from 'antd'
 
-import { DEMO_DISPATCHES } from '@/data/demoDispatches'
+import { errorMessage } from '@/api/http'
+import { createLoad, deleteLoad, listLoads, updateLoad } from '@/api/loads'
+import { useMarkings } from '@/contexts/MarkingsContext'
 import type { DispatchTrip, DispatchTripDraft } from '@/types/dispatch'
-import { newId } from '@/utils/money'
 
-const STORAGE_KEY = 'quarry-dispatches-v2'
-const LEGACY_KEYS = ['quarry-dispatches-v1']
+const LEGACY_KEYS = ['quarry-dispatches-v2', 'quarry-dispatches-v1']
 
 type DispatchContextValue = {
   trips: DispatchTrip[]
+  loading: boolean
   tripsForQuarry: (quarryId?: string) => DispatchTrip[]
   getTrip: (id?: string | null) => DispatchTrip | undefined
   tripForBlock: (blockId?: string | null) => DispatchTrip | undefined
   dispatchedBlockIds: (quarryId?: string) => Set<string>
   isBlockDispatched: (blockId: string) => boolean
-  addTrip: (quarryId: string, draft: DispatchTripDraft) => DispatchTrip
-  updateTrip: (id: string, draft: DispatchTripDraft) => DispatchTrip | undefined
-  deleteTrip: (id: string) => void
+  addTrip: (quarryId: string, draft: DispatchTripDraft) => Promise<DispatchTrip>
+  updateTrip: (id: string, draft: DispatchTripDraft) => Promise<DispatchTrip>
+  deleteTrip: (id: string) => Promise<void>
 }
 
 const DispatchContext = createContext<DispatchContextValue | null>(null)
 
-function nextLoadNo(trips: DispatchTrip[], quarryId: string) {
-  let max = 0
-  for (const trip of trips) {
-    if (trip.quarryId !== quarryId) continue
-    const match = /^LD-(\d+)$/i.exec(trip.loadNo || '')
-    if (match) max = Math.max(max, Number(match[1]))
-  }
-  return `LD-${String(max + 1).padStart(3, '0')}`
-}
-
-function ensureLoadNo(trip: DispatchTrip & { loadNo?: string }, index: number): DispatchTrip {
-  if (trip.loadNo?.trim()) return trip as DispatchTrip
-  return { ...trip, loadNo: `LD-${String(index + 1).padStart(3, '0')}` }
-}
-
-function readStored(): DispatchTrip[] {
-  try {
-    for (const key of LEGACY_KEYS) localStorage.removeItem(key)
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return DEMO_DISPATCHES
-    const parsed = JSON.parse(raw) as Array<DispatchTrip & { loadNo?: string }>
-    if (!Array.isArray(parsed) || !parsed.length) return DEMO_DISPATCHES
-    return parsed.map(ensureLoadNo)
-  } catch {
-    return DEMO_DISPATCHES
-  }
-}
-
 export function DispatchProvider({ children }: { children: ReactNode }) {
-  const [trips, setTrips] = useState<DispatchTrip[]>(readStored)
+  const { reloadMarkings } = useMarkings()
+  const [trips, setTrips] = useState<DispatchTrip[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const reload = useCallback(async () => {
+    const rows = await listLoads()
+    setTrips(rows)
+  }, [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trips))
-  }, [trips])
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key)
+    reload()
+      .catch((error) => {
+        message.error(errorMessage(error, 'Could not load trips') ?? 'Could not load trips')
+      })
+      .finally(() => setLoading(false))
+  }, [reload])
 
   const tripsForQuarry = useCallback(
     (quarryId?: string) => {
@@ -93,52 +79,32 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
     [trips],
   )
 
-  const addTrip = useCallback((quarryId: string, draft: DispatchTripDraft) => {
-    const trip: DispatchTrip = {
-      id: newId('dp'),
-      loadNo: '',
-      quarryId,
-      date: draft.date,
-      lorryNo: draft.lorryNo.trim(),
-      fromLocation: draft.fromLocation.trim(),
-      toLocation: draft.toLocation.trim(),
-      blockIds: [...new Set(draft.blockIds)],
-      notes: draft.notes?.trim() || undefined,
-    }
-    setTrips((current) => {
-      trip.loadNo = nextLoadNo(current, quarryId)
-      return [trip, ...current]
-    })
+  const addTrip = useCallback(async (quarryId: string, draft: DispatchTripDraft) => {
+    const trip = await createLoad(quarryId, draft)
+    await reload()
+    await reloadMarkings().catch(() => undefined)
     return trip
-  }, [])
+  }, [reload, reloadMarkings])
 
-  const updateTrip = useCallback((id: string, draft: DispatchTripDraft) => {
-    let updated: DispatchTrip | undefined
-    setTrips((current) =>
-      current.map((row) => {
-        if (row.id !== id) return row
-        updated = {
-          ...row,
-          date: draft.date,
-          lorryNo: draft.lorryNo.trim(),
-          fromLocation: draft.fromLocation.trim(),
-          toLocation: draft.toLocation.trim(),
-          blockIds: [...new Set(draft.blockIds)],
-          notes: draft.notes?.trim() || undefined,
-        }
-        return updated
-      }),
-    )
-    return updated
-  }, [])
+  const updateTrip = useCallback(async (id: string, draft: DispatchTripDraft) => {
+    const existing = trips.find((row) => row.id === id)
+    if (!existing) throw new Error('Load not found')
+    const trip = await updateLoad(id, existing.quarryId, draft)
+    await reload()
+    await reloadMarkings().catch(() => undefined)
+    return trip
+  }, [trips, reload, reloadMarkings])
 
-  const deleteTrip = useCallback((id: string) => {
-    setTrips((current) => current.filter((row) => row.id !== id))
-  }, [])
+  const deleteTrip = useCallback(async (id: string) => {
+    await deleteLoad(id)
+    await reload()
+    await reloadMarkings().catch(() => undefined)
+  }, [reload, reloadMarkings])
 
   const value = useMemo(
     () => ({
       trips,
+      loading,
       tripsForQuarry,
       getTrip,
       tripForBlock,
@@ -150,6 +116,7 @@ export function DispatchProvider({ children }: { children: ReactNode }) {
     }),
     [
       trips,
+      loading,
       tripsForQuarry,
       getTrip,
       tripForBlock,

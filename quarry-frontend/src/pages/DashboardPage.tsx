@@ -1,7 +1,6 @@
 import { ArrowRightOutlined, FallOutlined, RiseOutlined, SwapOutlined } from '@ant-design/icons'
-import { Button, Card, Col, Empty, List, Row, Select, Space, Statistic, Tag, Typography, theme } from 'antd'
-import dayjs from 'dayjs'
-import { useMemo, useState } from 'react'
+import { Alert, Button, Card, Col, Empty, List, Row, Select, Space, Spin, Statistic, Tag, Typography, theme } from 'antd'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import {
   Bar,
@@ -17,20 +16,35 @@ import {
   YAxis,
 } from 'recharts'
 
+import { errorMessage } from '@/api/http'
+import { getDashboard, type DashboardPayload } from '@/api/dashboard'
 import { useAuth } from '@/contexts/AuthContext'
-import { useMarkings } from '@/contexts/MarkingsContext'
-import { useTransactions } from '@/contexts/TransactionsContext'
 import type { Transaction } from '@/types/transaction'
-import { formatCbm, volCbm } from '@/utils/marking'
-import { money, monthKey, monthLabel } from '@/utils/money'
+import { formatDate, money } from '@/utils/money'
 
 const CREDIT_COLOR = '#389e0d'
 const DEBIT_COLOR = '#cf1322'
 const PIE_COLORS = ['#1677ff', '#13c2c2', '#fa8c16', '#722ed1', '#eb2f96', '#52c41a', '#faad14', '#2f54eb']
 
-function formatDate(value: string) {
-  const parsed = dayjs(value)
-  return parsed.isValid() ? parsed.format('DD MMM YYYY') : value
+const EMPTY_DASHBOARD: DashboardPayload = {
+  quarryId: '',
+  quarryName: '',
+  month: 'all',
+  periodLabel: 'All months',
+  months: [],
+  summary: {
+    balance: 0,
+    debit: 0,
+    credit: 0,
+    debitCount: 0,
+    creditCount: 0,
+    entries: 0,
+    totalEntries: 0,
+  },
+  monthlyFlow: [],
+  categories: [],
+  recent: [],
+  production: { blocks: 0, cbm: 0 },
 }
 
 function compactMoney(value: number) {
@@ -38,18 +52,6 @@ function compactMoney(value: number) {
   if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`
   if (value >= 1000) return `₹${(value / 1000).toFixed(0)}k`
   return money(value)
-}
-
-type MonthBucket = {
-  key: string
-  label: string
-  debit: number
-  credit: number
-}
-
-type CategoryBucket = {
-  name: string
-  value: number
 }
 
 function ChartTooltip({
@@ -90,86 +92,50 @@ export function DashboardPage() {
   const { token } = theme.useToken()
   const navigate = useNavigate()
   const { user, activeQuarry } = useAuth()
-  const { transactions } = useTransactions()
-  const { markingsForQuarry } = useMarkings()
   const canEdit = user?.role !== 'Viewer'
   const [month, setMonth] = useState('all')
+  const [data, setData] = useState<DashboardPayload>(EMPTY_DASHBOARD)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const quarryRows = useMemo(
-    () => transactions.filter((row) => row.quarryId === activeQuarry?.id),
-    [transactions, activeQuarry?.id],
-  )
-
-  const quarryMarkings = useMemo(
-    () => markingsForQuarry(activeQuarry?.id),
-    [markingsForQuarry, activeQuarry?.id],
-  )
-
-  const months = useMemo(
-    () => [...new Set(quarryRows.map((row) => monthKey(row.date)))].sort().reverse(),
-    [quarryRows],
-  )
-
-  const filtered = useMemo(() => {
-    if (month === 'all') return quarryRows
-    return quarryRows.filter((row) => monthKey(row.date) === month)
-  }, [quarryRows, month])
-
-  const debit = filtered.reduce((sum, row) => sum + row.debit, 0)
-  const credit = filtered.reduce((sum, row) => sum + row.credit, 0)
-  const balance = credit - debit
-
-  const monthlyFlow = useMemo(() => {
-    const map = new Map<string, MonthBucket>()
-    for (const row of quarryRows) {
-      const key = monthKey(row.date)
-      const current = map.get(key) ?? { key, label: monthLabel(key), debit: 0, credit: 0 }
-      current.debit += row.debit
-      current.credit += row.credit
-      map.set(key, current)
+  useEffect(() => {
+    if (!activeQuarry?.id) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    getDashboard(activeQuarry.id, month)
+      .then((payload) => {
+        if (!cancelled) setData(payload)
+      })
+      .catch((err) => {
+        if (!cancelled) setError(errorMessage(err, 'Could not load dashboard') ?? 'Could not load dashboard')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key))
-  }, [quarryRows])
+  }, [activeQuarry?.id, month])
 
-  const categories = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const row of filtered) {
-      if (!row.debit) continue
-      map.set(row.head || 'Other', (map.get(row.head || 'Other') ?? 0) + row.debit)
-    }
-    return [...map.entries()]
-      .map(([name, value]) => ({ name, value }) satisfies CategoryBucket)
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8)
-  }, [filtered])
-
+  const debit = data.summary.debit
+  const credit = data.summary.credit
+  const balance = data.summary.balance
+  const monthlyFlow = data.monthlyFlow
+  const categories = data.categories
   const categoryTotal = categories.reduce((sum, item) => sum + item.value, 0)
-
-  const recent = useMemo(
-    () =>
-      [...filtered]
-        .sort((a, b) => {
-          const byDate = b.date.localeCompare(a.date)
-          if (byDate) return byDate
-          return b.id.localeCompare(a.id)
-        })
-        .slice(0, 8),
-    [filtered],
-  )
-
-  const periodLabel = month === 'all' ? 'All months' : monthLabel(month)
+  const recent = data.recent
+  const periodLabel = data.periodLabel
   const axisColor = token.colorTextSecondary
   const gridColor = token.colorBorderSecondary
-
-  const markingPeriod = useMemo(() => {
-    const list =
-      month === 'all' ? quarryMarkings : quarryMarkings.filter((row) => monthKey(row.date) === month)
-    const cbm = list.reduce((sum, row) => sum + volCbm(row), 0)
-    return { blocks: list.length, cbm }
-  }, [quarryMarkings, month])
+  const markingPeriod = data.production
 
   return (
+    <Spin spinning={loading}>
     <div>
+      {error ? (
+        <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />
+      ) : null}
       <div
         style={{
           display: 'flex',
@@ -195,7 +161,7 @@ export function DashboardPage() {
             onChange={setMonth}
             options={[
               { value: 'all', label: 'All months' },
-              ...months.map((key) => ({ value: key, label: monthLabel(key) })),
+              ...data.months.map((item) => ({ value: item.key, label: item.label })),
             ]}
           />
           <Button type="primary" icon={<SwapOutlined />} onClick={() => navigate('/transactions')}>
@@ -205,6 +171,32 @@ export function DashboardPage() {
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title="Credit / receipts"
+              value={credit}
+              formatter={(value) => money(Number(value))}
+              styles={{ content: { color: CREDIT_COLOR } }}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {data.summary.creditCount} credit vouchers
+            </Typography.Text>
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card size="small">
+            <Statistic
+              title="Debit / expenses"
+              value={debit}
+              formatter={(value) => money(Number(value))}
+              styles={{ content: { color: DEBIT_COLOR } }}
+            />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {data.summary.debitCount} debit vouchers
+            </Typography.Text>
+          </Card>
+        </Col>
         <Col xs={12} md={6}>
           <Card size="small">
             <Statistic
@@ -222,35 +214,9 @@ export function DashboardPage() {
         <Col xs={12} md={6}>
           <Card size="small">
             <Statistic
-              title="Debit / expenses"
-              value={debit}
-              formatter={(value) => money(Number(value))}
-              styles={{ content: { color: DEBIT_COLOR } }}
-            />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {filtered.filter((row) => row.debit > 0).length} debit vouchers
-            </Typography.Text>
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic
-              title="Credit / receipts"
-              value={credit}
-              formatter={(value) => money(Number(value))}
-              styles={{ content: { color: CREDIT_COLOR } }}
-            />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {filtered.filter((row) => row.credit > 0).length} credit vouchers
-            </Typography.Text>
-          </Card>
-        </Col>
-        <Col xs={12} md={6}>
-          <Card size="small">
-            <Statistic
               title="Entries"
-              value={filtered.length}
-              suffix={<Typography.Text type="secondary">of {quarryRows.length}</Typography.Text>}
+              value={data.summary.entries}
+              suffix={<Typography.Text type="secondary">of {data.summary.totalEntries}</Typography.Text>}
             />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {periodLabel}
@@ -398,7 +364,7 @@ export function DashboardPage() {
                 <Statistic title="Blocks marked" value={markingPeriod.blocks} />
               </Col>
               <Col span={12}>
-                <Statistic title="Total CBM" value={Number(formatCbm(markingPeriod.cbm))} precision={3} />
+                <Statistic title="Total CBM" value={markingPeriod.cbm} precision={3} />
               </Col>
             </Row>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
@@ -421,5 +387,6 @@ export function DashboardPage() {
         </Col>
       </Row>
     </div>
+    </Spin>
   )
 }

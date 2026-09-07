@@ -5,7 +5,6 @@ import {
   DatePicker,
   Form,
   Input,
-  InputNumber,
   Select,
   Space,
   message,
@@ -15,14 +14,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 
 import { CustomerFormModal } from '@/components/customers/CustomerFormModal'
+import { NumberInput } from '@/components/common'
 import { BlockChoiceSelect } from '@/components/marking/BlockChoiceSelect'
+import { errorMessage } from '@/api/http'
 import { useAuth } from '@/contexts/AuthContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { DEMO_MARKERS } from '@/data/demoMarkers'
 import { DEFAULT_GST_PCT, emptyMarkingLine, type MarkingLineDraft } from '@/types/marking'
 import { dimsToCm, formatCbm, hasNetDims, markGross, markGstAmt, markTotal, volCbm } from '@/utils/marking'
-import { money, newId } from '@/utils/money'
+import { formatDate, money, newId } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -128,13 +129,14 @@ export function AddMarkingPage() {
           }
         }),
       }
-      const saved = addBatch(quarryId, draft)
+      const saved = await addBatch(quarryId, draft)
       message.success(
-        `${saved.blocks.length} markings · ${getParty(draft.partyId)?.name ?? 'party'} · ${draft.date}`,
+        `${saved.blocks.length} markings · ${getParty(draft.partyId)?.name ?? 'party'} · ${formatDate(draft.date)}`,
       )
       navigate(`/marking/${saved.batchId}`)
-    } catch {
-      // form validation
+    } catch (error) {
+      const text = errorMessage(error)
+      if (text) message.error(text)
     } finally {
       setSaving(false)
     }
@@ -263,52 +265,48 @@ export function AddMarkingPage() {
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={1}
-                        controls={false}
                         value={row.l || undefined}
                         onChange={(n) => updateLine(row.key, { l: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={1}
-                        controls={false}
                         value={row.w || undefined}
                         onChange={(n) => updateLine(row.key, { w: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={1}
-                        controls={false}
                         value={row.h || undefined}
                         onChange={(n) => updateLine(row.key, { h: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={0}
-                        controls={false}
                         value={row.rate}
                         onChange={(n) => updateLine(row.key, { rate: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
+                        decimal
                         size="small"
                         className="mk-cell-num"
                         min={0}
                         step={0.01}
-                        controls={false}
                         value={row.gstPct}
                         onChange={(n) => updateLine(row.key, { gstPct: n == null ? 0 : Number(n) })}
                       />
@@ -375,8 +373,8 @@ export function AddMarkingPage() {
           quarryId={quarryId}
           defaultType="Customer"
           onClose={() => setPartyFormOpen(false)}
-          onSave={(draft) => {
-            const party = addParty({ ...draft, type: 'Customer' })
+          onSave={async (draft) => {
+            const party = await addParty({ ...draft, type: 'Customer' })
             form.setFieldValue('partyId', party.id)
             message.success(`${party.name} added`)
             setPartyFormOpen(false)

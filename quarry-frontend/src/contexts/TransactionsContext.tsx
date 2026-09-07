@@ -1,14 +1,20 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { message } from 'antd'
 
-import { EXPENSE_HEADS } from '@/data/expenseHeads'
-import { JULY_2026_TRANSACTIONS } from '@/data/july2026Transactions'
+import { errorMessage } from '@/api/http'
+import {
+  createTransaction,
+  deleteTransactionApi,
+  listTransactions,
+  updateTransactionApi,
+} from '@/api/transactions'
+import { EXPENSE_HEADS, isMachineryRentHead } from '@/data/expenseHeads'
 import type { Transaction, TxnType, VoucherDraft } from '@/types/transaction'
-import { newId } from '@/utils/money'
 
-/** Bump when replacing seed / incompatible shapes. */
-const STORAGE_KEY = 'quarry-transactions-v7'
 const HEADS_KEY = 'quarry-heads-v1'
+const MACHINERY_KEY = 'quarry-machinery-names-v1'
 const LEGACY_KEYS = [
+  'quarry-transactions-v7',
   'quarry-transactions-v6',
   'quarry-transactions-v5',
   'quarry-transactions-v4',
@@ -18,11 +24,14 @@ const LEGACY_KEYS = [
 
 type TransactionsContextValue = {
   transactions: Transaction[]
+  loading: boolean
   heads: string[]
-  addVoucher: (quarryId: string, type: TxnType, draft: VoucherDraft) => void
-  updateTransaction: (id: string, type: TxnType, draft: VoucherDraft) => void
+  machineryNames: string[]
+  addVoucher: (quarryId: string, type: TxnType, draft: VoucherDraft) => Promise<void>
+  updateTransaction: (id: string, type: TxnType, draft: VoucherDraft) => Promise<void>
   addHead: (name: string) => string | null
-  deleteTransaction: (id: string) => void
+  addMachineryName: (name: string) => string | null
+  deleteTransaction: (id: string) => Promise<void>
 }
 
 const TransactionsContext = createContext<TransactionsContextValue | null>(null)
@@ -40,45 +49,54 @@ function uniqueHeads(list: string[]) {
   return next
 }
 
-function clearLegacyStorage() {
-  for (const key of LEGACY_KEYS) {
-    localStorage.removeItem(key)
-  }
-}
-
-function readStored(): Transaction[] {
+function readStoredList(key: string): string[] {
   try {
-    clearLegacyStorage()
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return JULY_2026_TRANSACTIONS
-    const parsed = JSON.parse(raw) as Transaction[]
-    return Array.isArray(parsed) ? parsed : JULY_2026_TRANSACTIONS
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as string[]) : []
   } catch {
-    return JULY_2026_TRANSACTIONS
+    return []
   }
 }
 
 function readHeads(transactions: Transaction[]): string[] {
-  try {
-    const raw = localStorage.getItem(HEADS_KEY)
-    const stored = raw ? (JSON.parse(raw) as string[]) : []
-    return uniqueHeads([...EXPENSE_HEADS, ...stored, ...transactions.map((row) => row.head)])
-  } catch {
-    return uniqueHeads([...EXPENSE_HEADS, ...transactions.map((row) => row.head)])
-  }
+  return uniqueHeads([...EXPENSE_HEADS, ...readStoredList(HEADS_KEY), ...transactions.map((row) => row.head)])
+}
+
+function machineryFromTransactions(transactions: Transaction[]) {
+  return transactions.filter((row) => isMachineryRentHead(row.head)).map((row) => row.refNote ?? '')
+}
+
+function readMachineryNames(transactions: Transaction[]): string[] {
+  return uniqueHeads([...readStoredList(MACHINERY_KEY), ...machineryFromTransactions(transactions)])
 }
 
 export function TransactionsProvider({ children }: { children: ReactNode }) {
-  const [transactions, setTransactions] = useState<Transaction[]>(readStored)
-  const [heads, setHeads] = useState<string[]>(() => readHeads(readStored()))
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [heads, setHeads] = useState<string[]>(() => readHeads([]))
+  const [machineryNames, setMachineryNames] = useState<string[]>(() => readMachineryNames([]))
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions))
-  }, [transactions])
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key)
+    listTransactions()
+      .then((rows) => {
+        setTransactions(rows)
+        setHeads(readHeads(rows))
+        setMachineryNames(readMachineryNames(rows))
+      })
+      .catch((error) => {
+        message.error(errorMessage(error, 'Could not load transactions') ?? 'Could not load transactions')
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(HEADS_KEY, JSON.stringify(heads))
   }, [heads])
+
+  useEffect(() => {
+    localStorage.setItem(MACHINERY_KEY, JSON.stringify(machineryNames))
+  }, [machineryNames])
 
   const addHead = useCallback((name: string) => {
     const trimmed = name.trim()
@@ -91,63 +109,49 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
     return existing ?? trimmed
   }, [heads])
 
-  const addVoucher = useCallback((quarryId: string, type: TxnType, draft: VoucherDraft) => {
-    const isCredit = type === 'Credit'
-    const head = addHead(draft.head) ?? draft.head
-    const next: Transaction = {
-      id: newId(),
-      quarryId,
-      date: draft.date,
-      type,
-      head,
-      particulars: draft.particulars,
-      debit: isCredit ? 0 : draft.amount,
-      credit: isCredit ? draft.amount : 0,
-      partyId: draft.partyId ?? null,
-      personId: draft.personId ?? null,
-      labourId: draft.labourId ?? null,
-      litres: draft.litres ?? null,
-      refNote: draft.refNote ?? null,
-      markingBatchId: draft.markingBatchId ?? null,
-      paymentMethod: draft.paymentMethod ?? null,
-    }
-    setTransactions((current) => [next, ...current])
-  }, [addHead])
+  const addMachineryName = useCallback((name: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) return null
+    setMachineryNames((current) => {
+      if (current.some((item) => item.toLowerCase() === trimmed.toLowerCase())) return current
+      return uniqueHeads([...current, trimmed])
+    })
+    const existing = machineryNames.find((item) => item.toLowerCase() === trimmed.toLowerCase())
+    return existing ?? trimmed
+  }, [machineryNames])
 
-  const updateTransaction = useCallback((id: string, type: TxnType, draft: VoucherDraft) => {
-    const isCredit = type === 'Credit'
+  const addVoucher = useCallback(async (quarryId: string, type: TxnType, draft: VoucherDraft) => {
     const head = addHead(draft.head) ?? draft.head
-    setTransactions((current) =>
-      current.map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              date: draft.date,
-              type,
-              head,
-              particulars: draft.particulars,
-              debit: isCredit ? 0 : draft.amount,
-              credit: isCredit ? draft.amount : 0,
-              partyId: draft.partyId ?? null,
-              personId: draft.personId ?? null,
-              labourId: draft.labourId ?? null,
-              litres: draft.litres ?? null,
-              refNote: draft.refNote ?? null,
-              markingBatchId: draft.markingBatchId ?? null,
-              paymentMethod: draft.paymentMethod ?? null,
-            }
-          : row,
-      ),
-    )
-  }, [addHead])
+    if (isMachineryRentHead(head) && draft.refNote) addMachineryName(draft.refNote)
+    const next = await createTransaction(quarryId, type, { ...draft, head })
+    setTransactions((current) => [next, ...current.filter((row) => row.id !== next.id)])
+  }, [addHead, addMachineryName])
 
-  const deleteTransaction = useCallback((id: string) => {
+  const updateTransaction = useCallback(async (id: string, type: TxnType, draft: VoucherDraft) => {
+    const head = addHead(draft.head) ?? draft.head
+    if (isMachineryRentHead(head) && draft.refNote) addMachineryName(draft.refNote)
+    const next = await updateTransactionApi(id, type, { ...draft, head })
+    setTransactions((current) => current.map((row) => (row.id === id ? next : row)))
+  }, [addHead, addMachineryName])
+
+  const deleteTransaction = useCallback(async (id: string) => {
+    await deleteTransactionApi(id)
     setTransactions((current) => current.filter((row) => row.id !== id))
   }, [])
 
   const value = useMemo(
-    () => ({ transactions, heads, addVoucher, updateTransaction, addHead, deleteTransaction }),
-    [transactions, heads, addVoucher, updateTransaction, addHead, deleteTransaction],
+    () => ({
+      transactions,
+      loading,
+      heads,
+      machineryNames,
+      addVoucher,
+      updateTransaction,
+      addHead,
+      addMachineryName,
+      deleteTransaction,
+    }),
+    [transactions, loading, heads, machineryNames, addVoucher, updateTransaction, addHead, addMachineryName, deleteTransaction],
   )
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>

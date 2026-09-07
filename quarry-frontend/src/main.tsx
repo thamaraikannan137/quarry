@@ -9,6 +9,7 @@ import { MarkingsProvider } from '@/contexts/MarkingsContext'
 import { NavProvider } from '@/contexts/NavContext'
 import { PartiesProvider } from '@/contexts/PartiesContext'
 import { SettingsProvider } from '@/contexts/SettingsContext'
+import { StaffProvider } from '@/contexts/StaffContext'
 import { TransactionsProvider } from '@/contexts/TransactionsContext'
 import { AppThemeProvider } from '@/theme/AppThemeProvider'
 
@@ -21,15 +22,17 @@ createRoot(document.getElementById('root')!).render(
         <AppThemeProvider>
           <AuthProvider>
             <PartiesProvider>
-              <TransactionsProvider>
-                <MarkingsProvider>
-                  <DispatchProvider>
-                    <NavProvider>
-                      <App />
-                    </NavProvider>
-                  </DispatchProvider>
-                </MarkingsProvider>
-              </TransactionsProvider>
+              <StaffProvider>
+                <TransactionsProvider>
+                  <MarkingsProvider>
+                    <DispatchProvider>
+                      <NavProvider>
+                        <App />
+                      </NavProvider>
+                    </DispatchProvider>
+                  </MarkingsProvider>
+                </TransactionsProvider>
+              </StaffProvider>
             </PartiesProvider>
           </AuthProvider>
         </AppThemeProvider>

@@ -1,6 +1,5 @@
 import { ArrowLeftOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
 import { Button, Col, Descriptions, List, Popconfirm, Row, Space, Tabs, Tag, Typography, message } from 'antd'
-import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 
@@ -11,17 +10,13 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
-import { formatCbm } from '@/utils/marking'
-import { batchBalance, batchPayStatus, batchReceived } from '@/utils/markingPayment'
-import { money } from '@/utils/money'
-import { partyBalance, partyMarkingPending } from '@/utils/partyBalance'
+import { formatCbm, formatMarkingNo } from '@/utils/marking'
+import { batchBalance, batchPayStatus } from '@/utils/markingPayment'
+import { formatDate, money, compareByDateThenTime } from '@/utils/money'
+import { partyBalance, partyMarkingPending, partyReceived } from '@/utils/partyBalance'
+import { isCustomerParty, isVendorParty } from '@/types/party'
 
 import '@/styles/marking.css'
-
-function formatDate(value: string) {
-  const parsed = dayjs(value)
-  return parsed.isValid() ? parsed.format('DD MMM YYYY') : value
-}
 
 export function CustomerDetailPage() {
   const { partyId } = useParams<{ partyId: string }>()
@@ -53,19 +48,19 @@ export function CustomerDetailPage() {
     if (!party || !quarryId) return []
     return transactions
       .filter((row) => row.partyId === party.id && row.quarryId === quarryId)
-      .sort((a, b) => b.date.localeCompare(a.date))
+      .sort((a, b) => compareByDateThenTime(b, a))
   }, [party, transactions, quarryId])
 
-  const received = linkedMarkings.reduce(
-    (sum, batch) => sum + batchReceived(transactions, batch.batchId),
-    0,
-  )
+  const received = party ? partyReceived(party.id, linkedTxns) : 0
   const invoiced = linkedMarkings.reduce((sum, batch) => sum + batch.total, 0)
   const markingPending = party ? partyMarkingPending(transactions, linkedMarkings) : 0
   const totalPending = party ? partyBalance(party, transactions, linkedMarkings) : 0
   const opening = party?.openingBalance ?? 0
 
   if (!partyId) return <Navigate to="/customers" replace />
+  if (party && isVendorParty(party) && !isCustomerParty(party)) {
+    return <Navigate to={`/vendors/${party.id}`} replace />
+  }
   if (!party) {
     return (
       <div>
@@ -108,10 +103,15 @@ export function CustomerDetailPage() {
               title={`Delete ${party.name}?`}
               okText="Delete"
               okButtonProps={{ danger: true }}
-              onConfirm={() => {
-                deleteParty(party.id)
-                message.success('Customer deleted')
-                navigate('/customers')
+              onConfirm={async () => {
+                try {
+                  await deleteParty(party.id)
+                  message.success('Customer deleted')
+                  navigate('/customers')
+                } catch (error) {
+                  message.error(error instanceof Error ? error.message : 'Could not delete customer')
+                  throw error
+                }
               }}
             >
               <Button danger icon={<DeleteOutlined />}>
@@ -153,7 +153,7 @@ export function CustomerDetailPage() {
             title="Total pending"
             value={totalPending}
             formatter={(value) => money(Number(value))}
-            valueColor={totalPending > 0 ? '#cf1322' : undefined}
+            valueColor={totalPending > 0 ? '#cf1322' : totalPending < 0 ? '#389e0d' : undefined}
           />
         </Col>
       </Row>
@@ -261,6 +261,7 @@ export function CustomerDetailPage() {
                   <table className="marking-register marking-summary">
                     <thead>
                       <tr>
+                        <th>Marking ID</th>
                         <th>Date</th>
                         <th>Marker</th>
                         <th className="num">Blocks</th>
@@ -287,6 +288,9 @@ export function CustomerDetailPage() {
                             className="summary-row"
                             onClick={() => navigate(`/marking/${batch.batchId}`)}
                           >
+                            <td>
+                              <strong>{formatMarkingNo(batch)}</strong>
+                            </td>
                             <td>{formatDate(batch.date)}</td>
                             <td>{batch.markerName || '—'}</td>
                             <td className="num">{batch.blockCount}</td>
@@ -325,8 +329,8 @@ export function CustomerDetailPage() {
           initial={party}
           defaultType="Customer"
           onClose={() => setFormOpen(false)}
-          onSave={(draft) => {
-            updateParty(party.id, draft)
+          onSave={async (draft) => {
+            await updateParty(party.id, draft)
             message.success('Customer updated')
             setFormOpen(false)
           }}

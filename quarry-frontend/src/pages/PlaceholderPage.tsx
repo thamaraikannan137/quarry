@@ -18,7 +18,7 @@ export function PlaceholderPage() {
         {activeQuarry ? `${activeQuarry.name} · ${user?.role}` : user?.role}
       </Typography.Paragraph>
       <Typography.Paragraph>
-        This module will be built in a later phase. Dashboard, All Transactions, Customers, Block Marking, and Block Load are ready.
+        This module will be built in a later phase. Dashboard, All Transactions, Customers, Vendors, Staff Management, Attendance, Salary Sheet, Block Marking, Block Load, Purchase & Expense, Monthly Gift, Royalty, and Machinery Rent are ready.
       </Typography.Paragraph>
     </Card>
   )

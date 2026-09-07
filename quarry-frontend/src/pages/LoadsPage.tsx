@@ -9,6 +9,7 @@ import { useDispatch } from '@/contexts/DispatchContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import type { DispatchTrip } from '@/types/dispatch'
 import { formatCbm, volCbm } from '@/utils/marking'
+import { formatDate } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -35,7 +36,7 @@ export function LoadsPage() {
       })
       .filter(({ trip, blockNos }) => {
         if (!q) return true
-        return `${trip.loadNo} ${trip.lorryNo} ${trip.fromLocation} ${trip.toLocation} ${trip.date} ${blockNos}`
+        return `${trip.loadNo} ${trip.lorryNo} ${trip.fromLocation} ${trip.toLocation} ${trip.date} ${formatDate(trip.date)} ${blockNos}`
           .toLowerCase()
           .includes(q)
       })
@@ -151,7 +152,7 @@ function TripRow({
       <td>
         <strong>{trip.loadNo}</strong>
       </td>
-      <td>{trip.date}</td>
+      <td>{formatDate(trip.date)}</td>
       <td>{trip.lorryNo}</td>
       <td>{trip.fromLocation}</td>
       <td>{trip.toLocation}</td>

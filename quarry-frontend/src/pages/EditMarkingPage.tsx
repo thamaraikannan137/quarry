@@ -5,7 +5,6 @@ import {
   DatePicker,
   Form,
   Input,
-  InputNumber,
   Select,
   Space,
   message,
@@ -15,7 +14,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 
 import { CustomerFormModal } from '@/components/customers/CustomerFormModal'
+import { NumberInput } from '@/components/common'
 import { BlockChoiceSelect } from '@/components/marking/BlockChoiceSelect'
+import { errorMessage } from '@/api/http'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDispatch } from '@/contexts/DispatchContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
@@ -23,7 +24,7 @@ import { useParties } from '@/contexts/PartiesContext'
 import { DEMO_MARKERS } from '@/data/demoMarkers'
 import { DEFAULT_GST_PCT, emptyMarkingLine, type MarkingLineDraft } from '@/types/marking'
 import { dimsToCm, formatCbm, hasNetDims, markGross, markGstAmt, markTotal, volCbm } from '@/utils/marking'
-import { money, newId } from '@/utils/money'
+import { formatDate, money, newId } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -158,13 +159,14 @@ export function EditMarkingPage() {
           }
         }),
       }
-      const saved = updateBatch(batchId, draft)
+      const saved = await updateBatch(batchId, draft)
       message.success(
-        `Updated ${saved.blocks.length} block${saved.blocks.length === 1 ? '' : 's'} · ${getParty(draft.partyId)?.name ?? 'party'} · ${draft.date}`,
+        `Updated ${saved.blocks.length} block${saved.blocks.length === 1 ? '' : 's'} · ${getParty(draft.partyId)?.name ?? 'party'} · ${formatDate(draft.date)}`,
       )
       navigate(`/marking/${batchId}`)
-    } catch {
-      // validation
+    } catch (error) {
+      const text = errorMessage(error)
+      if (text) message.error(text)
     } finally {
       setSaving(false)
     }
@@ -199,7 +201,7 @@ export function EditMarkingPage() {
             <h1 style={{ margin: 0 }}>Edit marking</h1>
           </Space>
           <p>
-            {getParty(batch.partyId)?.name ?? 'Party'} · {batch.date} · {activeQuarry.name}
+            {getParty(batch.partyId)?.name ?? 'Party'} · {formatDate(batch.date)} · {activeQuarry.name}
           </p>
         </div>
         <div className="marking-batch-footer-btns">
@@ -310,52 +312,48 @@ export function EditMarkingPage() {
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={1}
-                        controls={false}
                         value={row.l || undefined}
                         onChange={(n) => updateLine(row.key, { l: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={1}
-                        controls={false}
                         value={row.w || undefined}
                         onChange={(n) => updateLine(row.key, { w: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={1}
-                        controls={false}
                         value={row.h || undefined}
                         onChange={(n) => updateLine(row.key, { h: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
                         size="small"
                         className="mk-cell-num"
                         min={0}
-                        controls={false}
                         value={row.rate}
                         onChange={(n) => updateLine(row.key, { rate: n == null ? 0 : Number(n) })}
                       />
                     </td>
                     <td>
-                      <InputNumber
+                      <NumberInput
+                        decimal
                         size="small"
                         className="mk-cell-num"
                         min={0}
                         step={0.01}
-                        controls={false}
                         value={row.gstPct}
                         onChange={(n) => updateLine(row.key, { gstPct: n == null ? 0 : Number(n) })}
                       />
@@ -424,8 +422,8 @@ export function EditMarkingPage() {
           quarryId={quarryId}
           defaultType="Customer"
           onClose={() => setPartyFormOpen(false)}
-          onSave={(draft) => {
-            const party = addParty({ ...draft, type: 'Customer' })
+          onSave={async (draft) => {
+            const party = await addParty({ ...draft, type: 'Customer' })
             form.setFieldValue('partyId', party.id)
             message.success(`${party.name} added`)
             setPartyFormOpen(false)

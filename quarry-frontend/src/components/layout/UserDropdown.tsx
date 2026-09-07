@@ -66,15 +66,15 @@ export function UserDropdown() {
 
   return (
     <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
-      <Space style={{ cursor: 'pointer' }} size={8}>
-        <Avatar style={{ backgroundColor: settings.primaryColor }}>
+      <Space className="user-chip" size={8} align="center" style={{ cursor: 'pointer', lineHeight: 1.2 }}>
+        <Avatar style={{ backgroundColor: settings.primaryColor, flexShrink: 0 }}>
           {user.name.trim().charAt(0).toUpperCase()}
         </Avatar>
-        <span className="user-chip-text" style={{ display: 'none' }}>
+        <span className="user-chip-text">
           <Typography.Text strong style={{ display: 'block', lineHeight: 1.2 }}>
             {user.name}
           </Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12, lineHeight: 1.2 }}>
             {user.role}
           </Typography.Text>
         </span>

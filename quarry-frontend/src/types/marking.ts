@@ -9,6 +9,8 @@ export type BlockMarking = {
   id: string
   /** Shared id for the invoice / slot (Excel: one Date+Party with many blocks). */
   batchId: string
+  /** Human-facing unique marking id, e.g. MK-001 */
+  markingNo: string
   quarryId: string
   date: string
   partyId: string
@@ -64,6 +66,7 @@ export type MarkingUpdateDraft = MarkingLineDraft & {
 /** Landing-page row: one marking invoice with rolled-up totals. */
 export type MarkingBatchSummary = {
   batchId: string
+  markingNo: string
   quarryId: string
   date: string
   partyId: string

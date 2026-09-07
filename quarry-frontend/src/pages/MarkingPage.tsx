@@ -10,9 +10,9 @@ import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
 import { type MarkingBatchSummary } from '@/types/marking'
-import { formatCbm } from '@/utils/marking'
+import { formatCbm, formatMarkingNo } from '@/utils/marking'
 import { batchBalance, batchReceived, summarizeLoadCounts } from '@/utils/markingPayment'
-import { money, monthKey, monthLabel } from '@/utils/money'
+import { formatDate, money, monthKey, monthLabel } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -70,7 +70,7 @@ export function MarkingPage() {
       if (markerFilter !== 'all' && row.markerName !== markerFilter) return false
       if (!q) return true
       const blockNos = row.blocks.map((block) => block.blockNo).join(' ')
-      return `${row.partyName} ${row.batchId} ${blockNos} ${row.markerName ?? ''}`.toLowerCase().includes(q)
+      return `${row.partyName} ${row.markingNo} ${row.batchId} ${blockNos} ${row.markerName ?? ''}`.toLowerCase().includes(q)
     })
   }, [allBatches, month, partyId, markerFilter, search])
 
@@ -160,7 +160,7 @@ export function MarkingPage() {
             <Input
               allowClear
               prefix={<SearchOutlined />}
-              placeholder="Search…"
+              placeholder="Search MK-001 / party…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               style={{ width: 180 }}
@@ -172,6 +172,7 @@ export function MarkingPage() {
           <table className="marking-register marking-summary">
             <thead>
               <tr>
+                <th>Marking ID</th>
                 <th>Date</th>
                 <th>Party</th>
                 <th>Marker</th>
@@ -185,7 +186,7 @@ export function MarkingPage() {
             <tbody>
               {groups.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="empty">
                       No markings for {activeQuarry.name}
                       {markingsForQuarry(quarryId).length ? ' with this filter' : ''}.
@@ -228,7 +229,10 @@ function SummaryBatchRow({
 
   return (
     <tr className="summary-row" onClick={onOpen}>
-      <td>{group.date}</td>
+      <td>
+        <strong>{formatMarkingNo(group)}</strong>
+      </td>
+      <td>{formatDate(group.date)}</td>
       <td>
         <strong>{group.partyName}</strong>
       </td>

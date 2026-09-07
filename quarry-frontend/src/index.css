@@ -16,9 +16,16 @@ body {
   font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
 }
 
+.user-chip-text {
+  display: none;
+  line-height: 1.2;
+}
+
 @media (min-width: 640px) {
   .user-chip-text {
-    display: block !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 }
 

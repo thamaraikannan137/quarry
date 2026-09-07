@@ -12,14 +12,14 @@ import { useParties } from '@/contexts/PartiesContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
 import type { Party } from '@/types/party'
 import { money } from '@/utils/money'
-import { partyBalance } from '@/utils/partyBalance'
+import { partyBalance, partyInvoiced, partyReceived } from '@/utils/partyBalance'
 
 import '@/styles/marking.css'
 
 type BalanceFilter = 'all' | 'pending' | 'zero'
 type SortKey = 'name' | 'bal-desc' | 'bal-asc'
 
-type CustomerRow = Party & { balance: number }
+type CustomerRow = Party & { balance: number; invoiced: number; received: number }
 
 export function CustomersPage() {
   const navigate = useNavigate()
@@ -42,8 +42,10 @@ export function CustomersPage() {
     const list = customersForQuarry(quarryId).map((party) => {
       const linked = transactions.filter((row) => row.partyId === party.id && row.quarryId === quarryId)
       const markings = batches.filter((batch) => batch.partyId === party.id)
+      const invoiced = partyInvoiced(markings)
+      const received = partyReceived(party.id, linked)
       const balance = partyBalance(party, linked, markings)
-      return { ...party, balance } satisfies CustomerRow
+      return { ...party, invoiced, received, balance } satisfies CustomerRow
     })
 
     const q = search.trim().toLowerCase()
@@ -84,11 +86,31 @@ export function CustomersPage() {
     { title: 'GSTIN', dataIndex: 'gstin', key: 'gstin', width: 150, ellipsis: true },
     { title: 'State', dataIndex: 'state', key: 'state', width: 110, render: (v) => v || '—' },
     {
+      title: 'Invoiced',
+      dataIndex: 'invoiced',
+      key: 'invoiced',
+      align: 'right',
+      width: 130,
+      sorter: (a, b) => a.invoiced - b.invoiced,
+      render: (value: number) => money(value),
+    },
+    {
+      title: 'Received',
+      dataIndex: 'received',
+      key: 'received',
+      align: 'right',
+      width: 130,
+      sorter: (a, b) => a.received - b.received,
+      render: (value: number) => (
+        <Typography.Text style={value > 0 ? { color: '#389e0d' } : undefined}>{money(value)}</Typography.Text>
+      ),
+    },
+    {
       title: 'Total pending',
       dataIndex: 'balance',
       key: 'balance',
       align: 'right',
-      width: 120,
+      width: 140,
       sorter: (a, b) => a.balance - b.balance,
       render: (value: number) => (
         <Typography.Text type={value > 0 ? 'danger' : undefined} style={value < 0 ? { color: '#389e0d' } : undefined} strong>
@@ -138,7 +160,7 @@ export function CustomersPage() {
             title="Total pending"
             value={totalBalance}
             formatter={(value) => money(Number(value))}
-            valueColor={totalBalance > 0 ? '#cf1322' : undefined}
+            valueColor={totalBalance > 0 ? '#cf1322' : totalBalance < 0 ? '#389e0d' : undefined}
           />
         </Col>
       </Row>
@@ -201,13 +223,13 @@ export function CustomersPage() {
             setFormOpen(false)
             setEditing(null)
           }}
-          onSave={(draft) => {
+          onSave={async (draft) => {
             if (editing) {
-              updateParty(editing.id, draft)
+              await updateParty(editing.id, draft)
               message.success('Customer updated')
               return
             }
-            const party = addParty({ ...draft, type: draft.type || 'Customer' })
+            const party = await addParty({ ...draft, type: draft.type || 'Customer' })
             message.success('Customer added')
             navigate(`/customers/${party.id}`)
           }}

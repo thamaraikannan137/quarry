@@ -4,13 +4,14 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 
+import { errorMessage } from '@/api/http'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDispatch } from '@/contexts/DispatchContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import type { BlockMarking } from '@/types/marking'
 import { formatCbm, volCbm } from '@/utils/marking'
-import { newId } from '@/utils/money'
+import { formatDate, newId } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -61,7 +62,7 @@ export function AddLoadPage() {
       .filter((block) => block.id === currentId || !selectedIds.has(block.id))
       .map((block) => ({
         value: block.id,
-        label: `${block.blockNo} · ${getParty(block.partyId)?.name ?? '—'} · ${block.date}`,
+        label: `${block.blockNo} · ${getParty(block.partyId)?.name ?? '—'} · ${formatDate(block.date)}`,
         block,
       }))
   }
@@ -97,7 +98,7 @@ export function AddLoadPage() {
         return
       }
       setSaving(true)
-      const trip = addTrip(quarryId, {
+      const trip = await addTrip(quarryId, {
         date: values.date.format('YYYY-MM-DD'),
         lorryNo: values.lorryNo,
         fromLocation: values.fromLocation,
@@ -109,8 +110,9 @@ export function AddLoadPage() {
         `Load ${trip.loadNo} saved · ${trip.lorryNo} · ${blockIds.length} block${blockIds.length === 1 ? '' : 's'}`,
       )
       navigate(`/loads/${trip.id}`)
-    } catch {
-      // validation
+    } catch (error) {
+      const text = errorMessage(error)
+      if (text) message.error(text)
     } finally {
       setSaving(false)
     }

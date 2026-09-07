@@ -4,12 +4,13 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 
+import { errorMessage } from '@/api/http'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDispatch } from '@/contexts/DispatchContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { formatCbm, volCbm } from '@/utils/marking'
-import { newId } from '@/utils/money'
+import { formatDate, newId } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -67,7 +68,7 @@ export function EditLoadPage() {
       .filter((block) => block.id === currentId || !selectedIds.has(block.id))
       .map((block) => ({
         value: block.id,
-        label: `${block.blockNo} · ${getParty(block.partyId)?.name ?? '—'} · ${block.date}`,
+        label: `${block.blockNo} · ${getParty(block.partyId)?.name ?? '—'} · ${formatDate(block.date)}`,
         block,
       }))
   }
@@ -123,7 +124,7 @@ export function EditLoadPage() {
         return
       }
       setSaving(true)
-      updateTrip(trip.id, {
+      await updateTrip(trip.id, {
         date: values.date.format('YYYY-MM-DD'),
         lorryNo: values.lorryNo,
         fromLocation: values.fromLocation,
@@ -133,8 +134,9 @@ export function EditLoadPage() {
       })
       message.success(`Load ${trip.loadNo} updated`)
       navigate(`/loads/${trip.id}`)
-    } catch {
-      // validation
+    } catch (error) {
+      const text = errorMessage(error)
+      if (text) message.error(text)
     } finally {
       setSaving(false)
     }

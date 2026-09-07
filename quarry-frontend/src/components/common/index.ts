@@ -1,4 +1,5 @@
 export { DataTable, type DataTableProps } from '@/components/common/DataTable'
+export { NumberInput } from '@/components/common/NumberInput'
 export { StatCard } from '@/components/common/StatCard'
 export { TableCard } from '@/components/common/TableCard'
 export { useInfiniteList } from '@/hooks/useInfiniteList'

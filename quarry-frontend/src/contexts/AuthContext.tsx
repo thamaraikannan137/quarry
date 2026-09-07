@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
+import { listQuarries } from '@/api/quarries'
 import { themeConfig } from '@/configs/themeConfig'
 import { DEMO_QUARRIES, DEMO_USERS } from '@/data/demoUsers'
 import type { Quarry, SessionUser } from '@/types/app'
@@ -36,15 +37,23 @@ function persistSession(user: SessionUser, remember: boolean) {
   else sessionStorage.setItem(themeConfig.sessionStorageKey, payload)
 }
 
-function allowedFor(user: SessionUser): Quarry[] {
-  if (user.role === 'Owner' || user.quarryIds.includes('*')) return DEMO_QUARRIES
-  return DEMO_QUARRIES.filter((quarry) => user.quarryIds.includes(quarry.id))
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(readSession)
+  const [quarries, setQuarries] = useState<Quarry[]>(DEMO_QUARRIES)
 
-  const allowedQuarries = useMemo(() => (user ? allowedFor(user) : []), [user])
+  useEffect(() => {
+    listQuarries()
+      .then((rows) => {
+        if (rows.length) setQuarries(rows)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  const allowedQuarries = useMemo(() => {
+    if (!user) return []
+    if (user.role === 'Owner' || user.quarryIds.includes('*')) return quarries
+    return quarries.filter((quarry) => user.quarryIds.includes(quarry.id))
+  }, [user, quarries])
   const activeQuarry = useMemo(
     () => allowedQuarries.find((quarry) => quarry.id === user?.lastQuarryId) ?? allowedQuarries[0],
     [allowedQuarries, user?.lastQuarryId],
@@ -88,14 +97,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      quarries: DEMO_QUARRIES,
+      quarries,
       allowedQuarries,
       activeQuarry,
       signIn,
       signOut,
       setActiveQuarry,
     }),
-    [user, allowedQuarries, activeQuarry, signIn, signOut, setActiveQuarry],
+    [user, quarries, allowedQuarries, activeQuarry, signIn, signOut, setActiveQuarry],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

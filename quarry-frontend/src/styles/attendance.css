@@ -1,0 +1,80 @@
+.attendance-register .ant-table-cell {
+  padding: 4px 4px !important;
+}
+
+.attendance-register .ant-table-thead > tr > th {
+  text-align: center;
+  line-height: 1.15;
+}
+
+.attendance-day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 28px;
+}
+
+.attendance-day-head .dow {
+  font-size: 10px;
+  font-weight: 500;
+  color: #667787;
+  text-transform: uppercase;
+}
+
+.attendance-cell {
+  width: 100%;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 28px;
+  padding: 0;
+}
+
+.attendance-cell:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.attendance-cell.is-present {
+  color: #1f7a4d;
+  background: #e7f6ee;
+}
+
+.attendance-cell.is-absent {
+  color: #c0392b;
+  background: #fdecea;
+}
+
+.attendance-cell.is-halfday {
+  color: #a16207;
+  background: #fbf3d0;
+}
+
+.attendance-cell.is-today {
+  box-shadow: inset 0 0 0 1px #1677ff;
+}
+
+.attendance-register .is-sunday {
+  background: #f7f8fa;
+}
+
+.attendance-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #667787;
+  font-size: 12px;
+}
+
+.attendance-legend b {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  margin-right: 4px;
+  border-radius: 3px;
+}

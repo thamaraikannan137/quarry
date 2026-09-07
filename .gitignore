@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+*.log
+.DS_Store
+quarry-frontend/node_modules
+quarry-frontend/dist
+backend/node_modules
+backend/dist

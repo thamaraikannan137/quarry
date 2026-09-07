@@ -2,7 +2,7 @@ export type LinkPerson = {
   id: string
   name: string
   role: string
-  kind: 'Staff' | 'Worker'
+  kind: 'Staff'
   quarryId: string
 }
 
@@ -13,7 +13,7 @@ export type LinkGang = {
   quarryId: string
 }
 
-/** Temporary staff / labour masters until HR modules are built. */
+/** Temporary labour gang masters until the labour module is built. Staff lives in Staff Management. */
 export const DEMO_PEOPLE: LinkPerson[] = [
   { id: 's_ragul', name: 'P. Ragul', role: 'Incharge', kind: 'Staff', quarryId: 'q_chitha' },
   { id: 's_selva', name: 'Selvakumar', role: 'Pit Incharge', kind: 'Staff', quarryId: 'q_chitha' },
@@ -26,8 +26,6 @@ export const DEMO_PEOPLE: LinkPerson[] = [
   { id: 's_suresh', name: 'Suresh', role: 'Crane Op', kind: 'Staff', quarryId: 'q_chitha' },
   { id: 's_thalapathi', name: 'Thalapathi', role: 'Office', kind: 'Staff', quarryId: 'q_chitha' },
   { id: 's_marikannu', name: 'Marikannu', role: 'Mess', kind: 'Staff', quarryId: 'q_chitha' },
-  { id: 's_kadar', name: 'Kadar', role: 'WS.Helper', kind: 'Worker', quarryId: 'q_chitha' },
-  { id: 's_blade', name: 'Blade Op', role: 'Blade/op', kind: 'Worker', quarryId: 'q_chitha' },
 ]
 
 export const DEMO_GANGS: LinkGang[] = [

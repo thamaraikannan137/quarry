@@ -16,9 +16,9 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Block Marking', path: '/marking', icon: 'AppstoreOutlined' },
       { label: 'Block Load', path: '/loads', icon: 'CarOutlined' },
+      { label: 'Customer', path: '/customers', icon: 'UserOutlined' },
       { label: 'Procurement & Sale', path: '/sale', icon: 'ShoppingOutlined' },
       { label: 'Proforma Invoice', path: '/invoices', icon: 'FileTextOutlined' },
-      { label: 'Customer', path: '/customers', icon: 'UserOutlined' },
     ],
   },
   {
@@ -29,7 +29,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Finance / Loan', path: '/finance', icon: 'CreditCardOutlined' },
       { label: 'Monthly Gift', path: '/gift', icon: 'GiftOutlined' },
       { label: 'Royalty', path: '/royalty', icon: 'BankOutlined' },
-      { label: 'Machinery', path: '/machinery', icon: 'CarOutlined' },
+      { label: 'Machinery Rent', path: '/machinery', icon: 'CarOutlined' },
       { label: 'Vendor', path: '/vendors', icon: 'ShopOutlined' },
     ],
   },
@@ -40,7 +40,6 @@ export const navGroups: NavGroup[] = [
       { label: 'Staff Management', path: '/staff', icon: 'TeamOutlined' },
       { label: 'Attendance', path: '/attendance', icon: 'CalendarOutlined' },
       { label: 'Salary Sheet', path: '/salary', icon: 'DollarOutlined' },
-      { label: 'Payroll', path: '/payroll', icon: 'AccountBookOutlined' },
     ],
   },
   {

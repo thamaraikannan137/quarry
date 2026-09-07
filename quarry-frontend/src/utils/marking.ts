@@ -69,6 +69,11 @@ export function formatSize(m: Pick<BlockMarking, 'l' | 'w' | 'h'>) {
   return `${m.l}×${m.w}×${m.h}`
 }
 
+/** Human-facing marking id (MK-001), falling back to the internal batch id. */
+export function formatMarkingNo(row: { markingNo?: string | null; batchId: string }) {
+  return row.markingNo?.trim() || row.batchId
+}
+
 /** Group block lines into invoice summaries (Excel-style Date + Party slots). */
 export function summarizeBatches(blocks: BlockMarking[]): MarkingBatchSummary[] {
   const map = new Map<string, BlockMarking[]>()
@@ -88,6 +93,7 @@ export function summarizeBatches(blocks: BlockMarking[]): MarkingBatchSummary[] 
       const gstAmt = sorted.reduce((sum, row) => sum + markGstAmt(row), 0)
       return {
         batchId,
+        markingNo: formatMarkingNo(first),
         quarryId: first.quarryId,
         date: first.date,
         partyId: first.partyId,
@@ -102,5 +108,5 @@ export function summarizeBatches(blocks: BlockMarking[]): MarkingBatchSummary[] 
         markerName: sorted.find((row) => row.markerName)?.markerName,
       } satisfies MarkingBatchSummary
     })
-    .sort((a, b) => b.date.localeCompare(a.date) || a.batchId.localeCompare(b.batchId))
+    .sort((a, b) => b.date.localeCompare(a.date) || a.markingNo.localeCompare(b.markingNo) || a.batchId.localeCompare(b.batchId))
 }

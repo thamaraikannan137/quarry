@@ -14,7 +14,6 @@ import {
   theme,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { useMemo, useState, type ReactNode } from 'react'
 
 import { DataTable, TableCard } from '@/components/common'
@@ -22,8 +21,9 @@ import { TransactionDetail } from '@/components/transactions/TransactionDetail'
 import { VoucherDialog } from '@/components/transactions/VoucherDialog'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
+import { CREDIT_HEADS } from '@/data/expenseHeads'
 import type { Transaction, TxnType } from '@/types/transaction'
-import { money, monthKey, monthLabel } from '@/utils/money'
+import { formatDate, money, monthKey, monthLabel, compareByDateThenTime } from '@/utils/money'
 
 type ColumnFilters = {
   date: string
@@ -50,11 +50,6 @@ function matchesAmount(value: number, filter: string) {
   const asNumber = Number(q)
   if (!Number.isNaN(asNumber) && q !== '') return value >= asNumber
   return String(value).includes(q)
-}
-
-function formatDate(value: string) {
-  const parsed = dayjs(value)
-  return parsed.isValid() ? parsed.format('DD MMM YYYY') : value
 }
 
 function ColumnTitle({
@@ -107,7 +102,8 @@ export function TransactionsPage() {
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return quarryRows.filter((row) => {
+    return quarryRows
+      .filter((row) => {
       if (month !== 'all' && monthKey(row.date) !== month) return false
       if (typeFilter !== 'all' && row.type !== typeFilter) return false
       if (q && !`${row.particulars} ${row.head} ${row.date} ${row.type}`.toLowerCase().includes(q)) {
@@ -128,6 +124,7 @@ export function TransactionsPage() {
       if (!matchesAmount(row.credit, columnFilters.credit)) return false
       return true
     })
+      .sort((a, b) => compareByDateThenTime(b, a))
   }, [quarryRows, month, typeFilter, search, columnFilters])
 
   const selectedRow = selected ? (transactions.find((row) => row.id === selected.id) ?? null) : null
@@ -167,7 +164,7 @@ export function TransactionsPage() {
       ),
       dataIndex: 'date',
       key: 'date',
-      sorter: (a, b) => a.date.localeCompare(b.date),
+      sorter: (a, b) => compareByDateThenTime(a, b),
       defaultSortOrder: 'descend',
       width: 150,
       render: (value: string) => formatDate(value),
@@ -227,7 +224,7 @@ export function TransactionsPage() {
     },
     {
       title: (
-        <ColumnTitle label="Comment">
+        <ColumnTitle label="Description">
           <Input
             size="small"
             allowClear
@@ -340,20 +337,20 @@ export function TransactionsPage() {
         <Col xs={12} md={6}>
           <Card size="small">
             <Statistic
-              title="Debit"
-              value={debit}
+              title="Credit"
+              value={credit}
               formatter={(value) => money(Number(value))}
-              styles={{ content: { color: '#cf1322' } }}
+              styles={{ content: { color: '#389e0d' } }}
             />
           </Card>
         </Col>
         <Col xs={12} md={6}>
           <Card size="small">
             <Statistic
-              title="Credit"
-              value={credit}
+              title="Debit"
+              value={debit}
               formatter={(value) => money(Number(value))}
-              styles={{ content: { color: '#389e0d' } }}
+              styles={{ content: { color: '#cf1322' } }}
             />
           </Card>
         </Col>
@@ -446,7 +443,9 @@ export function TransactionsPage() {
           setVoucherType(null)
           setEditing(row)
         }}
-        onDelete={deleteTransaction}
+        onDelete={async (id) => {
+          await deleteTransaction(id)
+        }}
       />
 
       {activeQuarry && dialogOpen && dialogType && (
@@ -455,7 +454,7 @@ export function TransactionsPage() {
           type={dialogType}
           quarryId={activeQuarry.id}
           quarryName={activeQuarry.name}
-          heads={heads}
+          heads={dialogType === 'Credit' ? [...CREDIT_HEADS] : heads}
           initial={dialogInitial}
           onClose={() => {
             setVoucherType(null)
@@ -464,13 +463,13 @@ export function TransactionsPage() {
           onCreateHead={(name) => {
             addHead(name)
           }}
-          onSave={(draft) => {
+          onSave={async (draft) => {
             if (editing) {
-              updateTransaction(editing.id, dialogType, draft)
+              await updateTransaction(editing.id, dialogType, draft)
               message.success('Entry updated')
               return
             }
-            addVoucher(activeQuarry.id, dialogType, draft)
+            await addVoucher(activeQuarry.id, dialogType, draft)
             message.success(`${dialogType} entry saved`)
           }}
         />

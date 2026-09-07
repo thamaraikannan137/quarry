@@ -1,56 +1,53 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { message } from 'antd'
 
-import { DEMO_MARKINGS } from '@/data/demoMarkings'
+import { errorMessage } from '@/api/http'
+import {
+  createMarkingBatch,
+  deleteMarkingBatch,
+  listMarkingBlocks,
+  updateMarkingBatch,
+  updateMarkingBlock,
+} from '@/api/markings'
 import type { BlockMarking, MarkingBatchDraft, MarkingBatchEditDraft, MarkingBatchSummary, MarkingUpdateDraft } from '@/types/marking'
 import { summarizeBatches } from '@/utils/marking'
-import { newId } from '@/utils/money'
 
-const STORAGE_KEY = 'quarry-markings-v3'
-const LEGACY_KEYS = ['quarry-markings-v2', 'quarry-markings-v1']
+const LEGACY_KEYS = ['quarry-markings-v3', 'quarry-markings-v2', 'quarry-markings-v1']
 
 type MarkingsContextValue = {
   markings: BlockMarking[]
+  loading: boolean
   markingsForQuarry: (quarryId?: string) => BlockMarking[]
   batchesForQuarry: (quarryId?: string) => MarkingBatchSummary[]
   getBatch: (batchId?: string | null) => MarkingBatchSummary | undefined
   getMarking: (id?: string | null) => BlockMarking | undefined
-  addBatch: (quarryId: string, draft: MarkingBatchDraft) => { batchId: string; blocks: BlockMarking[] }
-  updateBatch: (batchId: string, draft: MarkingBatchEditDraft) => { batchId: string; blocks: BlockMarking[] }
-  updateMarking: (id: string, draft: MarkingUpdateDraft) => void
-  deleteMarking: (id: string) => void
-  deleteBatch: (batchId: string) => void
+  addBatch: (quarryId: string, draft: MarkingBatchDraft) => Promise<{ batchId: string; blocks: BlockMarking[] }>
+  updateBatch: (batchId: string, draft: MarkingBatchEditDraft) => Promise<{ batchId: string; blocks: BlockMarking[] }>
+  updateMarking: (id: string, draft: MarkingUpdateDraft) => Promise<void>
+  deleteMarking: (id: string) => Promise<void>
+  deleteBatch: (batchId: string) => Promise<void>
+  reloadMarkings: () => Promise<void>
 }
 
 const MarkingsContext = createContext<MarkingsContextValue | null>(null)
 
-function ensureBatchId(row: BlockMarking & { batchId?: string }): BlockMarking {
-  if (row.batchId) return row as BlockMarking
-  // Legacy flat rows: invent a stable batch from quarry+date+party
-  return {
-    ...row,
-    batchId: `legacy_${row.quarryId}_${row.date}_${row.partyId}`,
-  }
-}
-
-function readStored(): BlockMarking[] {
-  try {
-    for (const key of LEGACY_KEYS) localStorage.removeItem(key)
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return DEMO_MARKINGS
-    const parsed = JSON.parse(raw) as BlockMarking[]
-    if (!Array.isArray(parsed) || !parsed.length) return DEMO_MARKINGS
-    return parsed.map(ensureBatchId)
-  } catch {
-    return DEMO_MARKINGS
-  }
-}
-
 export function MarkingsProvider({ children }: { children: ReactNode }) {
-  const [markings, setMarkings] = useState<BlockMarking[]>(readStored)
+  const [markings, setMarkings] = useState<BlockMarking[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const reloadMarkings = useCallback(async () => {
+    const rows = await listMarkingBlocks()
+    setMarkings(rows)
+  }, [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(markings))
-  }, [markings])
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key)
+    reloadMarkings()
+      .catch((error) => {
+        message.error(errorMessage(error, 'Could not load markings') ?? 'Could not load markings')
+      })
+      .finally(() => setLoading(false))
+  }, [reloadMarkings])
 
   const markingsForQuarry = useCallback(
     (quarryId?: string) => {
@@ -75,108 +72,67 @@ export function MarkingsProvider({ children }: { children: ReactNode }) {
 
   const getMarking = useCallback((id?: string | null) => markings.find((row) => row.id === id), [markings])
 
-  const addBatch = useCallback((quarryId: string, draft: MarkingBatchDraft) => {
-    const batchId = newId('mb')
-    const batchMarker = draft.markerName?.trim() || undefined
-    const blocks: BlockMarking[] = draft.lines
-      .filter((line) => line.blockNo.trim() && line.l > 0 && line.w > 0 && line.h > 0)
-      .map((line) => ({
-        id: newId('mk'),
-        batchId,
-        quarryId,
-        date: draft.date,
-        partyId: draft.partyId,
-        blockNo: line.blockNo.trim(),
-        choice: line.choice || 'I',
-        l: Number(line.l) || 0,
-        w: Number(line.w) || 0,
-        h: Number(line.h) || 0,
-        rate: Number(line.rate) || 0,
-        gstPct: Number(line.gstPct) || 0,
-        load: line.load || 'Pending',
-        markerName: line.markerName?.trim() || batchMarker,
-      }))
+  const addBatch = useCallback(async (quarryId: string, draft: MarkingBatchDraft) => {
+    const saved = await createMarkingBatch(quarryId, draft)
+    await reloadMarkings()
+    return saved
+  }, [reloadMarkings])
 
-    if (blocks.length) {
-      setMarkings((current) => [...blocks, ...current])
+  const updateBatch = useCallback(async (batchId: string, draft: MarkingBatchEditDraft) => {
+    const quarryId = markings.find((row) => row.batchId === batchId)?.quarryId
+    if (!quarryId) throw new Error('Marking batch not found')
+    const saved = await updateMarkingBatch(batchId, quarryId, draft)
+    await reloadMarkings()
+    return saved
+  }, [markings, reloadMarkings])
+
+  const updateMarking = useCallback(async (id: string, draft: MarkingUpdateDraft) => {
+    const current = markings.find((row) => row.id === id)
+    if (!current) throw new Error('Marking not found')
+    await updateMarkingBlock(id, current.quarryId, markings, draft)
+    await reloadMarkings()
+  }, [markings, reloadMarkings])
+
+  const deleteMarking = useCallback(async (id: string) => {
+    const current = markings.find((row) => row.id === id)
+    if (!current) return
+    const siblings = markings.filter((row) => row.batchId === current.batchId)
+    if (siblings.length <= 1) {
+      await deleteMarkingBatch(current.batchId)
+      await reloadMarkings()
+      return
     }
-    return { batchId, blocks }
-  }, [])
-
-  const updateBatch = useCallback((batchId: string, draft: MarkingBatchEditDraft) => {
-    const batchMarker = draft.markerName?.trim() || undefined
-    let nextBlocks: BlockMarking[] = []
-
-    setMarkings((current) => {
-      const existingById = new Map(current.filter((row) => row.batchId === batchId).map((row) => [row.id, row]))
-      const quarryId = existingById.values().next().value?.quarryId ?? current.find((row) => row.batchId === batchId)?.quarryId
-
-      nextBlocks = draft.lines
-        .filter((line) => line.blockNo.trim() && line.l > 0 && line.w > 0 && line.h > 0)
-        .map((line) => {
-          const prev = line.id ? existingById.get(line.id) : undefined
-          return {
-            id: prev?.id ?? newId('mk'),
-            batchId,
-            quarryId: prev?.quarryId ?? quarryId ?? '',
-            date: draft.date,
-            partyId: draft.partyId,
-            blockNo: line.blockNo.trim(),
-            choice: line.choice || 'I',
-            l: Number(line.l) || 0,
-            w: Number(line.w) || 0,
-            h: Number(line.h) || 0,
-            rate: Number(line.rate) || 0,
-            gstPct: Number(line.gstPct) || 0,
-            load: prev?.load || line.load || 'Pending',
-            markerName: line.markerName?.trim() || batchMarker,
-            notes: prev?.notes,
-          }
-        })
-        .filter((block) => Boolean(block.quarryId))
-
-      const others = current.filter((row) => row.batchId !== batchId)
-      return [...nextBlocks, ...others]
+    await updateMarkingBatch(current.batchId, current.quarryId, {
+      date: current.date,
+      partyId: current.partyId,
+      markerName: current.markerName,
+      lines: siblings
+        .filter((row) => row.id !== id)
+        .map((row) => ({
+          id: row.id,
+          blockNo: row.blockNo,
+          choice: row.choice,
+          l: row.l,
+          w: row.w,
+          h: row.h,
+          rate: row.rate,
+          gstPct: row.gstPct,
+          load: row.load,
+          markerName: row.markerName,
+        })),
     })
+    await reloadMarkings()
+  }, [markings, reloadMarkings])
 
-    return { batchId, blocks: nextBlocks }
-  }, [])
-
-  const updateMarking = useCallback((id: string, draft: MarkingUpdateDraft) => {
-    setMarkings((current) =>
-      current.map((row) =>
-        row.id === id
-          ? {
-              ...row,
-              date: draft.date,
-              partyId: draft.partyId,
-              blockNo: draft.blockNo.trim(),
-              choice: draft.choice || 'I',
-              l: Number(draft.l) || 0,
-              w: Number(draft.w) || 0,
-              h: Number(draft.h) || 0,
-              rate: Number(draft.rate) || 0,
-              gstPct: Number(draft.gstPct) || 0,
-              load: draft.load || 'Pending',
-              markerName: draft.markerName?.trim() || undefined,
-              notes: draft.notes?.trim() || undefined,
-            }
-          : row,
-      ),
-    )
-  }, [])
-
-  const deleteMarking = useCallback((id: string) => {
-    setMarkings((current) => current.filter((row) => row.id !== id))
-  }, [])
-
-  const deleteBatch = useCallback((batchId: string) => {
-    setMarkings((current) => current.filter((row) => row.batchId !== batchId))
-  }, [])
+  const deleteBatch = useCallback(async (batchId: string) => {
+    await deleteMarkingBatch(batchId)
+    await reloadMarkings()
+  }, [reloadMarkings])
 
   const value = useMemo(
     () => ({
       markings,
+      loading,
       markingsForQuarry,
       batchesForQuarry,
       getBatch,
@@ -186,9 +142,11 @@ export function MarkingsProvider({ children }: { children: ReactNode }) {
       updateMarking,
       deleteMarking,
       deleteBatch,
+      reloadMarkings,
     }),
     [
       markings,
+      loading,
       markingsForQuarry,
       batchesForQuarry,
       getBatch,
@@ -198,6 +156,7 @@ export function MarkingsProvider({ children }: { children: ReactNode }) {
       updateMarking,
       deleteMarking,
       deleteBatch,
+      reloadMarkings,
     ],
   )
 

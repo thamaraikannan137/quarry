@@ -4,12 +4,14 @@ import type { ColumnsType } from 'antd/es/table'
 import { useMemo } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 
+import { errorMessage } from '@/api/http'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDispatch } from '@/contexts/DispatchContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import type { BlockMarking } from '@/types/marking'
-import { formatCbm, formatSize, volCbm } from '@/utils/marking'
+import { formatCbm, formatMarkingNo, formatSize, volCbm } from '@/utils/marking'
+import { formatDate } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -77,10 +79,16 @@ export function LoadDetailPage() {
       content: `Removes trip ${trip.loadNo} (${trip.lorryNo}). Blocks return to Pending load status.`,
       okText: 'Delete load',
       okButtonProps: { danger: true },
-      onOk: () => {
-        deleteTrip(trip.id)
-        message.success('Load deleted')
-        navigate('/loads')
+      onOk: async () => {
+        try {
+          await deleteTrip(trip.id)
+          message.success('Load deleted')
+          navigate('/loads')
+        } catch (error) {
+          const text = errorMessage(error)
+          if (text) message.error(text)
+          throw error
+        }
       },
     })
   }
@@ -102,7 +110,7 @@ export function LoadDetailPage() {
       key: 'marking',
       render: (_value, row) => (
         <Link to={`/marking/${row.batchId}`} onClick={(event) => event.stopPropagation()}>
-          {row.date}
+          {formatMarkingNo(row)}
         </Link>
       ),
     },
@@ -140,7 +148,7 @@ export function LoadDetailPage() {
             </h1>
           </Space>
           <p>
-            {trip.date} · {trip.fromLocation} → {trip.toLocation} · {rows.length} block
+            {formatDate(trip.date)} · {trip.fromLocation} → {trip.toLocation} · {rows.length} block
             {rows.length === 1 ? '' : 's'}
           </p>
         </div>
@@ -162,7 +170,7 @@ export function LoadDetailPage() {
             {trip.loadNo}
           </Typography.Text>
         </Descriptions.Item>
-        <Descriptions.Item label="Date">{trip.date}</Descriptions.Item>
+        <Descriptions.Item label="Date">{formatDate(trip.date)}</Descriptions.Item>
         <Descriptions.Item label="Lorry">
           <Typography.Text strong>{trip.lorryNo}</Typography.Text>
         </Descriptions.Item>

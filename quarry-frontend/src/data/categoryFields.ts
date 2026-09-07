@@ -1,12 +1,16 @@
 import type { TxnType } from '@/types/transaction'
 
-export type ExtraFieldKey = 'party' | 'advanceLink' | 'litres' | 'refNote'
+export type ExtraFieldKey = 'party' | 'advanceLink' | 'litres' | 'refNote' | 'paymentMethod' | 'markingBatch'
+
+export type PartySource = 'customer' | 'vendor' | 'all'
 
 export type ExtraFieldDef = {
   key: ExtraFieldKey
   label: string
   required?: boolean
   hint?: string
+  /** Who appears in the party / supplier dropdown. */
+  partySource?: PartySource
 }
 
 export type CategoryFieldRule = {
@@ -31,30 +35,43 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
         label: 'From party',
         required: true,
         hint: 'Customer / party who paid',
+        partySource: 'customer',
+      },
+      {
+        key: 'paymentMethod',
+        label: 'Payment type',
+        required: true,
+        hint: 'Cash, GPay, UPI, Bank…',
+      },
+      {
+        key: 'markingBatch',
+        label: 'Apply to marking',
+        required: false,
+        hint: 'Optional — unpaid invoice for this customer',
       },
     ],
   },
   {
-    heads: ['Salary Advance', 'Labour Advance'],
+    heads: ['Salary Advance', 'Salary'],
     types: ['Debit'],
     fields: [
       {
         key: 'advanceLink',
-        label: 'Link to person / gang',
+        label: 'Staff',
         required: true,
-        hint: 'So the advance shows on salary / labour sheets later',
+        hint: 'Staff this entry is for',
       },
     ],
   },
   {
-    heads: ['Salary', 'Labour Wage'],
+    heads: ['Labour Advance', 'Labour Wage'],
     types: ['Debit'],
     fields: [
       {
         key: 'advanceLink',
-        label: 'Link to person / gang',
+        label: 'Labour gang',
         required: true,
-        hint: 'Who this wage / salary payment is for',
+        hint: 'Who this wage / advance is for',
       },
     ],
   },
@@ -67,6 +84,7 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
         label: 'Vendor / party',
         required: true,
         hint: 'Updates that vendor’s pending balance',
+        partySource: 'vendor',
       },
     ],
   },
@@ -77,14 +95,15 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
       {
         key: 'litres',
         label: 'Litres',
-        required: false,
-        hint: 'Optional — diesel quantity',
+        required: true,
+        hint: 'Diesel quantity in litres',
       },
       {
         key: 'party',
         label: 'Supplier (optional)',
         required: false,
-        hint: 'Bulk supplier / vendor',
+        hint: 'Diesel supplier / vendor',
+        partySource: 'vendor',
       },
     ],
   },
@@ -94,32 +113,65 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
     fields: [
       {
         key: 'refNote',
-        label: 'Machine / unit',
-        required: false,
+        label: 'Machinery name',
+        required: true,
         hint: 'e.g. HM Crane, Hitachi 370',
       },
       {
         key: 'party',
         label: 'Owner / party (optional)',
         required: false,
+        partySource: 'vendor',
       },
     ],
   },
   {
-    heads: ['Purchase', 'Royalty'],
+    heads: ['Purchase'],
     types: ['Debit', 'Credit'],
     fields: [
       {
         key: 'party',
-        label: 'Party',
+        label: 'Supplier',
         required: false,
-        hint: 'Customer or supplier for this entry',
+        hint: 'Vendor for this purchase',
+        partySource: 'vendor',
       },
       {
         key: 'refNote',
         label: 'Reference',
         required: false,
         hint: 'Invoice / DC / block ref',
+      },
+    ],
+  },
+  {
+    heads: ['Monthly Gift'],
+    types: ['Debit'],
+    fields: [
+      {
+        key: 'refNote',
+        label: 'Name',
+        required: true,
+        hint: 'Person who received the gift',
+      },
+    ],
+  },
+  {
+    heads: ['Royalty'],
+    types: ['Debit', 'Credit'],
+    fields: [
+      {
+        key: 'party',
+        label: 'Party',
+        required: false,
+        hint: 'Royalty agent / authority',
+        partySource: 'vendor',
+      },
+      {
+        key: 'refNote',
+        label: 'Reference',
+        required: false,
+        hint: 'Permit / DC / block ref',
       },
     ],
   },

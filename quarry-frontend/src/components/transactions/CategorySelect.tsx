@@ -1,5 +1,5 @@
 import { PlusOutlined } from '@ant-design/icons'
-import { Button, Form, Input, Modal, Select, Space, message } from 'antd'
+import { Button, Divider, Form, Input, Modal, Select, message } from 'antd'
 import { useMemo, useState } from 'react'
 
 type CategorySelectProps = {
@@ -11,7 +11,14 @@ type CategorySelectProps = {
   size?: 'small' | 'middle' | 'large'
   status?: '' | 'error' | 'warning'
   allowClear?: boolean
+  disabled?: boolean
   onCreate?: (name: string) => void
+  createTitle?: string
+  createFieldLabel?: string
+  createPlaceholder?: string
+  createButtonLabel?: string
+  notFoundContent?: string
+  createdNoun?: string
 }
 
 export function CategorySelect({
@@ -23,9 +30,17 @@ export function CategorySelect({
   size = 'middle',
   status,
   allowClear = true,
+  disabled = false,
   onCreate,
+  createTitle = 'Add category',
+  createFieldLabel = 'Category name',
+  createPlaceholder = 'e.g. Grease, Site expense',
+  createButtonLabel = 'Add category',
+  notFoundContent = 'No category found',
+  createdNoun = 'Category',
 }: CategorySelectProps) {
-  const [open, setOpen] = useState(false)
+  const [selectOpen, setSelectOpen] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
   const [form] = Form.useForm<{ name: string }>()
 
   const selectOptions = useMemo(
@@ -37,8 +52,9 @@ export function CategorySelect({
   )
 
   const openAdd = () => {
+    setSelectOpen(false)
     form.setFieldsValue({ name: '' })
-    setOpen(true)
+    setModalOpen(true)
   }
 
   const submitAdd = async () => {
@@ -48,62 +64,74 @@ export function CategorySelect({
     if (existing) {
       onChange?.(existing)
       message.info(`“${existing}” already exists — selected`)
-      setOpen(false)
+      setModalOpen(false)
       return
     }
     onCreate?.(name)
     onChange?.(name)
-    message.success(`Category “${name}” added`)
-    setOpen(false)
+    message.success(`${createdNoun} “${name}” added`)
+    setModalOpen(false)
   }
-
-  const select = (
-    <Select
-      value={value || undefined}
-      options={selectOptions}
-      onChange={(next) => onChange?.(next ?? '')}
-      style={{ width: '100%' }}
-      size={size}
-      status={status}
-      allowClear={allowClear}
-      showSearch
-      placeholder={placeholder}
-      optionFilterProp="label"
-      filterOption={(input, option) =>
-        String(option?.label ?? '')
-          .toLowerCase()
-          .includes(input.toLowerCase())
-      }
-      notFoundContent="No category found"
-    />
-  )
-
-  if (!allowCreate) return select
 
   return (
     <>
-      <Space.Compact block>
-        <div style={{ flex: 1, minWidth: 0 }}>{select}</div>
-        <Button type="primary" icon={<PlusOutlined />} size={size} onClick={openAdd}>
-          Add
-        </Button>
-      </Space.Compact>
+      <Select
+        value={value || undefined}
+        options={selectOptions}
+        onChange={(next) => onChange?.(next ?? '')}
+        style={{ width: '100%' }}
+        size={size}
+        status={status}
+        allowClear={allowClear}
+        disabled={disabled}
+        showSearch
+        open={selectOpen}
+        onOpenChange={setSelectOpen}
+        placeholder={placeholder}
+        optionFilterProp="label"
+        filterOption={(input, option) =>
+          String(option?.label ?? '')
+            .toLowerCase()
+            .includes(input.toLowerCase())
+        }
+        notFoundContent={notFoundContent}
+        dropdownRender={
+          allowCreate
+            ? (menu) => (
+                <>
+                  {menu}
+                  <Divider style={{ margin: '8px 0' }} />
+                  <Button
+                    type="text"
+                    icon={<PlusOutlined />}
+                    style={{ width: '100%', textAlign: 'left' }}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={openAdd}
+                  >
+                    {createButtonLabel}
+                  </Button>
+                </>
+              )
+            : undefined
+        }
+      />
 
       <Modal
-        title="Add category"
-        open={open}
-        onCancel={() => setOpen(false)}
+        title={createTitle}
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
         onOk={submitAdd}
         okText="Add"
         destroyOnHidden
+        zIndex={1200}
       >
         <Form form={form} layout="vertical" style={{ marginTop: 12 }} onFinish={submitAdd}>
           <Form.Item
             name="name"
-            label="Category name"
-            rules={[{ required: true, message: 'Enter a category name' }]}
+            label={createFieldLabel}
+            rules={[{ required: true, message: `Enter a ${createFieldLabel.toLowerCase()}` }]}
           >
-            <Input autoFocus placeholder="e.g. Grease, Site expense" />
+            <Input autoFocus placeholder={createPlaceholder} />
           </Form.Item>
         </Form>
       </Modal>

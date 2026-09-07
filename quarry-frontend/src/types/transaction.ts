@@ -22,6 +22,7 @@ export type Transaction = {
   particulars: string
   debit: number
   credit: number
+  createdAt?: string
 } & TransactionMeta
 
 export type VoucherDraft = {

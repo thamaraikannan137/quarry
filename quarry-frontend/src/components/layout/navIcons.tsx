@@ -1,5 +1,4 @@
 import {
-  AccountBookOutlined,
   AppstoreOutlined,
   BankOutlined,
   BarChartOutlined,
@@ -38,7 +37,6 @@ const icons: Record<string, ReactNode> = {
   TeamOutlined: <TeamOutlined />,
   CalendarOutlined: <CalendarOutlined />,
   DollarOutlined: <DollarOutlined />,
-  AccountBookOutlined: <AccountBookOutlined />,
   SettingOutlined: <SettingOutlined />,
   UserSwitchOutlined: <UserSwitchOutlined />,
 }

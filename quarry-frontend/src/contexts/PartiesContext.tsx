@@ -1,76 +1,49 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { message } from 'antd'
 
-import { DEMO_PARTIES } from '@/data/demoParties'
+import { createCustomer, deleteCustomer, listCustomers, updateCustomer } from '@/api/customers'
+import { errorMessage } from '@/api/http'
 import type { Party, PartyDraft, PartyKind } from '@/types/party'
 import { isCustomerParty, isVendorParty } from '@/types/party'
-import { newId } from '@/utils/money'
 
-const STORAGE_KEY = 'quarry-parties-v1'
+const LEGACY_KEYS = ['quarry-parties-v1']
 
 type PartiesContextValue = {
   parties: Party[]
+  loading: boolean
   customersForQuarry: (quarryId?: string) => Party[]
   vendorsForQuarry: (quarryId?: string) => Party[]
   partiesForQuarry: (quarryId?: string) => Party[]
   getParty: (id?: string | null) => Party | undefined
-  addParty: (draft: PartyDraft) => Party
-  updateParty: (id: string, draft: PartyDraft) => void
-  deleteParty: (id: string) => void
+  addParty: (draft: PartyDraft) => Promise<Party>
+  updateParty: (id: string, draft: PartyDraft) => Promise<void>
+  deleteParty: (id: string) => Promise<void>
 }
 
 const PartiesContext = createContext<PartiesContextValue | null>(null)
-
-function mergeDemoParties(stored: Party[]): Party[] {
-  const byId = new Map(stored.map((party) => [party.id, party]))
-  for (const demo of DEMO_PARTIES) {
-    if (!byId.has(demo.id)) byId.set(demo.id, demo)
-  }
-  return [...byId.values()]
-}
-
-function readStored(): Party[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return DEMO_PARTIES
-    const parsed = JSON.parse(raw) as Party[]
-    return Array.isArray(parsed) && parsed.length ? mergeDemoParties(parsed) : DEMO_PARTIES
-  } catch {
-    return DEMO_PARTIES
-  }
-}
 
 function inQuarry(party: Party, quarryId?: string) {
   if (!quarryId) return true
   return party.quarryIds.includes(quarryId) || party.quarryIds.includes('*')
 }
 
-function normalizeDraft(draft: PartyDraft, id: string): Party {
-  return {
-    id,
-    name: draft.name.trim(),
-    type: draft.type,
-    phone: draft.phone.trim(),
-    email: draft.email.trim(),
-    gstin: draft.gstin.trim() || '—',
-    gstType: draft.gstType,
-    state: draft.state,
-    billingAddress: draft.billingAddress.trim(),
-    shippingAddress: draft.shippingAddress.trim(),
-    openingBalance: Number(draft.openingBalance) || 0,
-    asOf: draft.asOf,
-    creditLimit: Number(draft.creditLimit) || 0,
-    contact: draft.contact.trim(),
-    notes: draft.notes.trim(),
-    quarryIds: draft.quarryIds.length ? draft.quarryIds : ['q_chitha'],
-  }
-}
-
 export function PartiesProvider({ children }: { children: ReactNode }) {
-  const [parties, setParties] = useState<Party[]>(readStored)
+  const [parties, setParties] = useState<Party[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const reload = useCallback(async () => {
+    const rows = await listCustomers()
+    setParties(rows)
+  }, [])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(parties))
-  }, [parties])
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key)
+    reload()
+      .catch((error) => {
+        message.error(errorMessage(error, 'Could not load customers') ?? 'Could not load customers')
+      })
+      .finally(() => setLoading(false))
+  }, [reload])
 
   const partiesForQuarry = useCallback(
     (quarryId?: string) => parties.filter((party) => inQuarry(party, quarryId)).sort((a, b) => a.name.localeCompare(b.name)),
@@ -89,24 +62,26 @@ export function PartiesProvider({ children }: { children: ReactNode }) {
 
   const getParty = useCallback((id?: string | null) => parties.find((party) => party.id === id), [parties])
 
-  const addParty = useCallback((draft: PartyDraft) => {
-    const next = normalizeDraft(draft, draft.id || newId('p'))
-    setParties((current) => [next, ...current])
+  const addParty = useCallback(async (draft: PartyDraft) => {
+    const next = await createCustomer(draft)
+    setParties((current) => [next, ...current.filter((party) => party.id !== next.id)])
     return next
   }, [])
 
-  const updateParty = useCallback((id: string, draft: PartyDraft) => {
-    const next = normalizeDraft(draft, id)
+  const updateParty = useCallback(async (id: string, draft: PartyDraft) => {
+    const next = await updateCustomer(id, draft)
     setParties((current) => current.map((party) => (party.id === id ? next : party)))
   }, [])
 
-  const deleteParty = useCallback((id: string) => {
+  const deleteParty = useCallback(async (id: string) => {
+    await deleteCustomer(id)
     setParties((current) => current.filter((party) => party.id !== id))
   }, [])
 
   const value = useMemo(
     () => ({
       parties,
+      loading,
       customersForQuarry,
       vendorsForQuarry,
       partiesForQuarry,
@@ -115,7 +90,7 @@ export function PartiesProvider({ children }: { children: ReactNode }) {
       updateParty,
       deleteParty,
     }),
-    [parties, customersForQuarry, vendorsForQuarry, partiesForQuarry, getParty, addParty, updateParty, deleteParty],
+    [parties, loading, customersForQuarry, vendorsForQuarry, partiesForQuarry, getParty, addParty, updateParty, deleteParty],
   )
 
   return <PartiesContext.Provider value={value}>{children}</PartiesContext.Provider>

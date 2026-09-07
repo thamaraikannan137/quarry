@@ -1,13 +1,16 @@
-import { DatePicker, Form, Input, InputNumber, Modal, Select, Typography, message } from 'antd'
+import { DatePicker, Form, Input, Modal, Select, Typography, message } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 
+import { errorMessage } from '@/api/http'
+import { NumberInput } from '@/components/common'
 import { PaymentMethodSelect } from '@/components/marking/PaymentMethodSelect'
 import { useParties } from '@/contexts/PartiesContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
 import type { MarkingBatchSummary } from '@/types/marking'
 import { batchBalance, batchPayStatus, batchReceived } from '@/utils/markingPayment'
-import { money } from '@/utils/money'
+import { formatMarkingNo } from '@/utils/marking'
+import { formatDate, money } from '@/utils/money'
 
 type ReceivePaymentModalProps = {
   open: boolean
@@ -80,8 +83,8 @@ export function ReceivePaymentModal({ open, batch, batches, quarryId, onClose }:
       const isFull = amount + 0.5 >= balance
       const comment =
         values.comment?.trim() ||
-        `${isFull ? 'Full' : 'Partial'} receipt (${method}) — ${party?.name ?? 'party'} · ${selected.date}`
-      addVoucher(quarryId, 'Credit', {
+        `${isFull ? 'Full' : 'Partial'} receipt (${method}) — ${party?.name ?? 'party'} · ${formatDate(selected.date)}`
+      await addVoucher(quarryId, 'Credit', {
         date: values.date.format('YYYY-MM-DD'),
         amount,
         head: 'Cash Received',
@@ -92,8 +95,9 @@ export function ReceivePaymentModal({ open, batch, batches, quarryId, onClose }:
       })
       message.success(isFull ? 'Full payment received' : 'Partial payment received')
       onClose()
-    } catch {
-      // validation
+    } catch (error) {
+      const text = errorMessage(error)
+      if (text) message.error(text)
     }
   }
 
@@ -118,7 +122,7 @@ export function ReceivePaymentModal({ open, batch, batches, quarryId, onClose }:
             onChange={setSelectedBatchId}
             options={options.map((row) => ({
               value: row.batchId,
-              label: `${row.date} · pending ${money(batchBalance(row, transactions))}`,
+              label: `${formatMarkingNo(row)} · ${formatDate(row.date)} · pending ${money(batchBalance(row, transactions))}`,
             }))}
           />
         </div>
@@ -144,7 +148,7 @@ export function ReceivePaymentModal({ open, batch, batches, quarryId, onClose }:
           <PaymentMethodSelect />
         </Form.Item>
         <Form.Item name="amount" label="Amount" rules={[{ required: true, message: 'Enter amount' }]}>
-          <InputNumber style={{ width: '100%' }} min={1} controls={false} />
+          <NumberInput style={{ width: '100%' }} min={1} />
         </Form.Item>
         <Form.Item name="comment" label="Comment">
           <Input placeholder="Optional note" />

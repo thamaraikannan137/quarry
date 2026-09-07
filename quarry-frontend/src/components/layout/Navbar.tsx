@@ -27,16 +27,16 @@ export function Navbar() {
         background: resolvedMode === 'dark' ? '#141414' : '#fff',
         borderBottom: `1px solid ${resolvedMode === 'dark' ? '#303030' : '#f0f0f0'}`,
         height: 64,
-        lineHeight: '64px',
+        lineHeight: 'normal',
       }}
     >
-      <Space size={12}>
+      <Space size={12} align="center">
         {isMobile && (
           <Button type="text" icon={<MenuOutlined />} onClick={toggleMobile} aria-label="Open menu" />
         )}
         <QuarrySwitcher />
       </Space>
-      <Space size={8}>
+      <Space size={8} align="center">
         <ModeDropdown />
         <UserDropdown />
       </Space>

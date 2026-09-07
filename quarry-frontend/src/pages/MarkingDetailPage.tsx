@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router'
 
+import { errorMessage } from '@/api/http'
 import { StatCard } from '@/components/common'
 import { ReceivePaymentModal } from '@/components/marking/ReceivePaymentModal'
 import { useAuth } from '@/contexts/AuthContext'
@@ -12,14 +13,14 @@ import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
 import type { BlockMarking } from '@/types/marking'
-import { formatCbm, formatSize, markGross, markGstAmt, markGstPct, markTotal, volCbm } from '@/utils/marking'
+import { formatCbm, formatMarkingNo, formatSize, markGross, markGstAmt, markGstPct, markTotal, volCbm } from '@/utils/marking'
 import {
   batchBalance,
   batchPayStatus,
   batchReceived,
   paymentsForBatch,
 } from '@/utils/markingPayment'
-import { money } from '@/utils/money'
+import { formatDate, money } from '@/utils/money'
 
 import '@/styles/marking.css'
 
@@ -83,14 +84,20 @@ export function MarkingDetailPage() {
 
   const handleDeleteBatch = () => {
     Modal.confirm({
-      title: `Delete marking ${batch.batchId}?`,
-      content: `Removes all ${batch.blockCount} block${batch.blockCount === 1 ? '' : 's'} for ${party?.name ?? 'party'} on ${batch.date}.`,
+      title: `Delete marking ${formatMarkingNo(batch)}?`,
+      content: `Removes all ${batch.blockCount} block${batch.blockCount === 1 ? '' : 's'} for ${party?.name ?? 'party'} on ${formatDate(batch.date)}.`,
       okText: 'Delete marking',
       okButtonProps: { danger: true },
-      onOk: () => {
-        deleteBatch(batch.batchId)
-        message.success('Marking deleted')
-        navigate('/marking')
+      onOk: async () => {
+        try {
+          await deleteBatch(batch.batchId)
+          message.success('Marking deleted')
+          navigate('/marking')
+        } catch (error) {
+          const text = errorMessage(error)
+          if (text) message.error(text)
+          throw error
+        }
       },
     })
   }
@@ -209,10 +216,16 @@ export function MarkingDetailPage() {
               title: `Remove block ${row.blockNo}?`,
               okText: 'Remove',
               okButtonProps: { danger: true },
-              onOk: () => {
-                deleteMarking(row.id)
-                message.success('Block removed')
-                if (batch.blockCount <= 1) navigate('/marking')
+              onOk: async () => {
+                try {
+                  await deleteMarking(row.id)
+                  message.success('Block removed')
+                  if (batch.blockCount <= 1) navigate('/marking')
+                } catch (error) {
+                  const text = errorMessage(error)
+                  if (text) message.error(text)
+                  throw error
+                }
               },
             })
           }}
@@ -228,7 +241,7 @@ export function MarkingDetailPage() {
           <Space size={8} align="center" style={{ marginBottom: 4 }}>
             <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/marking')} aria-label="Back to summary" />
             <h1 style={{ margin: 0 }}>
-              {party?.name ?? 'Party'} · {batch.date}
+              {formatMarkingNo(batch)} · {party?.name ?? 'Party'}
             </h1>
           </Space>
           <p>
@@ -281,13 +294,15 @@ export function MarkingDetailPage() {
 
       <Descriptions size="small" column={{ xs: 1, sm: 2, md: 3 }} style={{ marginBottom: 16 }} bordered>
         <Descriptions.Item label="Marking ID">
-          <Typography.Text code>{batch.batchId}</Typography.Text>
+          <Typography.Text code strong>
+            {formatMarkingNo(batch)}
+          </Typography.Text>
         </Descriptions.Item>
         <Descriptions.Item label="Party">{party?.name ?? '—'}</Descriptions.Item>
         <Descriptions.Item label="Marker">
           <Typography.Text strong>{batch.markerName || '—'}</Typography.Text>
         </Descriptions.Item>
-        <Descriptions.Item label="Date">{batch.date}</Descriptions.Item>
+        <Descriptions.Item label="Date">{formatDate(batch.date)}</Descriptions.Item>
         <Descriptions.Item label="Blocks">{batch.blockCount}</Descriptions.Item>
         <Descriptions.Item label="Total CBM">
           <Typography.Text strong>{formatCbm(batch.cbm)}</Typography.Text>
@@ -392,8 +407,8 @@ export function MarkingDetailPage() {
                                 title: 'Delete this receipt?',
                                 okText: 'Delete',
                                 okButtonProps: { danger: true },
-                                onOk: () => {
-                                  deleteTransaction(row.id)
+                                onOk: async () => {
+                                  await deleteTransaction(row.id)
                                   message.success('Receipt removed')
                                 },
                               })

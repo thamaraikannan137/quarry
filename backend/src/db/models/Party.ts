@@ -1,0 +1,98 @@
+import { DataTypes, Model, type Optional } from 'sequelize'
+
+import { newId } from '../../lib/marking.js'
+import { sequelize } from '../sequelize.js'
+
+export interface PartyAttributes {
+  id: string
+  name: string
+  type: string
+  phone: string
+  email: string
+  gstin: string
+  gstType: string
+  state: string
+  billingAddress: string
+  shippingAddress: string
+  openingBalance: number
+  asOf: string
+  creditLimit: number
+  contact: string
+  notes: string
+  quarryId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+type PartyCreation = Optional<
+  PartyAttributes,
+  | 'id'
+  | 'type'
+  | 'phone'
+  | 'email'
+  | 'gstin'
+  | 'gstType'
+  | 'state'
+  | 'billingAddress'
+  | 'shippingAddress'
+  | 'openingBalance'
+  | 'asOf'
+  | 'creditLimit'
+  | 'contact'
+  | 'notes'
+  | 'createdAt'
+  | 'updatedAt'
+>
+
+export class Party extends Model<PartyAttributes, PartyCreation> implements PartyAttributes {
+  declare id: string
+  declare name: string
+  declare type: string
+  declare phone: string
+  declare email: string
+  declare gstin: string
+  declare gstType: string
+  declare state: string
+  declare billingAddress: string
+  declare shippingAddress: string
+  declare openingBalance: number
+  declare asOf: string
+  declare creditLimit: number
+  declare contact: string
+  declare notes: string
+  declare quarryId: string
+  declare createdAt: Date
+  declare updatedAt: Date
+}
+
+Party.init(
+  {
+    id: { type: DataTypes.STRING, primaryKey: true },
+    name: { type: DataTypes.STRING, allowNull: false },
+    type: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Customer' },
+    phone: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    email: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    gstin: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    gstType: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Unregistered/Consumer' },
+    state: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Tamil Nadu' },
+    billingAddress: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    shippingAddress: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    openingBalance: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
+    asOf: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    creditLimit: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
+    contact: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    notes: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
+    quarryId: { type: DataTypes.STRING, allowNull: false },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
+  },
+  {
+    sequelize,
+    tableName: 'Party',
+    indexes: [{ fields: ['quarryId'] }, { fields: ['type'] }, { fields: ['name'] }],
+  },
+)
+
+Party.beforeCreate((row) => {
+  if (!row.id) row.id = newId('pt')
+})

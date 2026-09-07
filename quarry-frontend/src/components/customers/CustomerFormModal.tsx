@@ -1,6 +1,9 @@
-import { DatePicker, Form, Input, InputNumber, Modal, Select, Tabs } from 'antd'
+import { DatePicker, Form, Input, Modal, Select, Tabs, message } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+
+import { errorMessage } from '@/api/http'
+import { NumberInput } from '@/components/common'
 
 import { TN_STATES, emptyPartyDraft, type GstType, type Party, type PartyDraft, type PartyKind } from '@/types/party'
 
@@ -9,8 +12,9 @@ type CustomerFormModalProps = {
   quarryId: string
   initial?: Party | null
   defaultType?: PartyKind
+  zIndex?: number
   onClose: () => void
-  onSave: (draft: PartyDraft) => void
+  onSave: (draft: PartyDraft) => void | Promise<void>
 }
 
 type FormValues = {
@@ -35,10 +39,12 @@ export function CustomerFormModal({
   quarryId,
   initial = null,
   defaultType = 'Customer',
+  zIndex,
   onClose,
   onSave,
 }: CustomerFormModalProps) {
   const [form] = Form.useForm<FormValues>()
+  const [saving, setSaving] = useState(false)
   const isEdit = Boolean(initial)
 
   useEffect(() => {
@@ -72,27 +78,41 @@ export function CustomerFormModal({
   }, [open, initial, form, quarryId, defaultType])
 
   const handleOk = async () => {
-    const values = await form.validateFields()
-    onSave({
-      id: initial?.id,
-      name: values.name,
-      phone: values.phone || '',
-      gstin: values.gstin || '—',
-      gstType: values.gstType,
-      state: values.state || '',
-      email: values.email || '',
-      billingAddress: values.billingAddress || '',
-      shippingAddress: values.shippingAddress || '',
-      openingBalance: values.openingBalance || 0,
-      asOf: values.asOf.format('YYYY-MM-DD'),
-      creditLimit: values.creditLimit || 0,
-      type: values.type,
-      contact: values.contact || '',
-      notes: values.notes || '',
-      quarryIds: initial?.quarryIds ?? [quarryId],
-    })
-    onClose()
+    try {
+      setSaving(true)
+      const values = await form.validateFields()
+      const blank = emptyPartyDraft(quarryId)
+      const isVendor = defaultType === 'Vendor'
+      await onSave({
+        id: initial?.id,
+        name: values.name,
+        phone: values.phone || '',
+        gstin: isVendor ? initial?.gstin || '—' : values.gstin || '—',
+        gstType: isVendor ? initial?.gstType || blank.gstType : values.gstType,
+        state: isVendor ? initial?.state || '' : values.state || '',
+        email: isVendor ? initial?.email || '' : values.email || '',
+        billingAddress: values.billingAddress || '',
+        shippingAddress: isVendor ? initial?.shippingAddress || '' : values.shippingAddress || '',
+        openingBalance: isVendor ? initial?.openingBalance || 0 : values.openingBalance || 0,
+        asOf: isVendor
+          ? initial?.asOf || blank.asOf
+          : values.asOf.format('YYYY-MM-DD'),
+        creditLimit: isVendor ? initial?.creditLimit || 0 : values.creditLimit || 0,
+        type: isVendor ? 'Vendor' : values.type,
+        contact: isVendor ? initial?.contact || '' : values.contact || '',
+        notes: isVendor ? initial?.notes || '' : values.notes || '',
+        quarryIds: initial?.quarryIds ?? [quarryId],
+      })
+      onClose()
+    } catch (error) {
+      const text = errorMessage(error)
+      if (text) message.error(text)
+    } finally {
+      setSaving(false)
+    }
   }
+
+  const isVendor = defaultType === 'Vendor'
 
   return (
     <Modal
@@ -100,15 +120,35 @@ export function CustomerFormModal({
       title={isEdit ? `Edit ${defaultType.toLowerCase()}` : `Add ${defaultType.toLowerCase()}`}
       onCancel={onClose}
       onOk={handleOk}
+      confirmLoading={saving}
       okText={isEdit ? 'Update' : 'Save'}
-      width={720}
+      width={isVendor ? 480 : 720}
+      zIndex={zIndex}
       destroyOnHidden
     >
       <Form form={form} layout="vertical" style={{ marginTop: 12 }} requiredMark="optional">
+        {isVendor ? (
+          <>
+            <Form.Item
+              name="name"
+              label="Vendor name"
+              rules={[{ required: true, message: 'Name is required' }]}
+            >
+              <Input autoFocus placeholder="Enter vendor name" />
+            </Form.Item>
+            <Form.Item name="phone" label="Phone">
+              <Input placeholder="Phone number" />
+            </Form.Item>
+            <Form.Item name="billingAddress" label="Address">
+              <Input.TextArea rows={3} placeholder="Address" />
+            </Form.Item>
+          </>
+        ) : (
+          <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
           <Form.Item
             name="name"
-            label="Party name"
+            label={defaultType === 'Customer' ? 'Customer name' : 'Party name'}
             rules={[{ required: true, message: 'Name is required' }]}
             style={{ gridColumn: 'span 1' }}
           >
@@ -163,21 +203,28 @@ export function CustomerFormModal({
               children: (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <Form.Item name="openingBalance" label="Opening balance">
-                    <InputNumber min={0} style={{ width: '100%' }} prefix="₹" controls={false} />
+                    <NumberInput min={0} style={{ width: '100%' }} prefix="₹" />
                   </Form.Item>
                   <Form.Item name="asOf" label="As of date" rules={[{ required: true }]}>
                     <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
                   </Form.Item>
                   <Form.Item name="creditLimit" label="Credit limit">
-                    <InputNumber min={0} style={{ width: '100%' }} prefix="₹" controls={false} />
+                    <NumberInput min={0} style={{ width: '100%' }} prefix="₹" />
                   </Form.Item>
                   <Form.Item name="type" label="Party type" rules={[{ required: true }]}>
                     <Select
-                      options={[
-                        { value: 'Customer', label: 'Customer' },
-                        { value: 'Vendor', label: 'Vendor' },
-                        { value: 'Both', label: 'Both' },
-                      ]}
+                      options={
+                        defaultType === 'Customer'
+                          ? [
+                              { value: 'Customer', label: 'Customer' },
+                              { value: 'Both', label: 'Customer & vendor' },
+                            ]
+                          : [
+                              { value: 'Customer', label: 'Customer' },
+                              { value: 'Vendor', label: 'Vendor' },
+                              { value: 'Both', label: 'Customer & vendor' },
+                            ]
+                      }
                     />
                   </Form.Item>
                 </div>
@@ -199,6 +246,8 @@ export function CustomerFormModal({
             },
           ]}
         />
+          </>
+        )}
       </Form>
     </Modal>
   )

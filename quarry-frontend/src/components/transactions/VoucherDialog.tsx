@@ -1,12 +1,24 @@
-import { DatePicker, Form, Input, InputNumber, Modal, Select, Typography } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
+import { Button, DatePicker, Divider, Form, Input, Modal, Select, message } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
+import { errorMessage } from '@/api/http'
+import { NumberInput } from '@/components/common'
+import { CustomerFormModal } from '@/components/customers/CustomerFormModal'
+import { PaymentMethodSelect } from '@/components/marking/PaymentMethodSelect'
 import { CategorySelect } from '@/components/transactions/CategorySelect'
+import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
+import { useStaff } from '@/contexts/StaffContext'
+import { useTransactions } from '@/contexts/TransactionsContext'
 import { fieldsForCategory } from '@/data/categoryFields'
-import { gangsForQuarry, peopleForQuarry } from '@/data/demoLinks'
+import { isMachineryRentHead } from '@/data/expenseHeads'
+import { gangsForQuarry } from '@/data/demoLinks'
 import type { Transaction, TxnType, VoucherDraft } from '@/types/transaction'
+import { batchBalance } from '@/utils/markingPayment'
+import { formatMarkingNo } from '@/utils/marking'
+import { money } from '@/utils/money'
 
 type VoucherDialogProps = {
   open: boolean
@@ -15,8 +27,15 @@ type VoucherDialogProps = {
   quarryName: string
   heads: string[]
   initial?: Transaction | null
+  defaultHead?: string
+  lockHead?: boolean
+  /** Pre-select this staff member on Salary / Advance vouchers. */
+  defaultPersonId?: string
+  lockPerson?: boolean
+  defaultAmount?: number
+  defaultParticulars?: string
   onClose: () => void
-  onSave: (draft: VoucherDraft) => void
+  onSave: (draft: VoucherDraft) => void | Promise<void>
   onCreateHead?: (name: string) => void
 }
 
@@ -29,6 +48,8 @@ type FormValues = {
   advanceLink?: string
   litres?: number
   refNote?: string
+  paymentMethod?: string
+  markingBatchId?: string
 }
 
 function toAdvanceLink(personId?: string | null, labourId?: string | null) {
@@ -44,6 +65,33 @@ function parseAdvanceLink(value?: string) {
   return { personId: null, labourId: null }
 }
 
+function isSalaryAdvanceHead(head?: string) {
+  return head?.trim().toLowerCase() === 'salary advance'
+}
+
+function isSalaryPayoutHead(head?: string) {
+  return head?.trim().toLowerCase() === 'salary'
+}
+
+function salaryAdvanceParticulars(name: string) {
+  return `Salary advance — ${name}`
+}
+
+function salaryPayoutParticulars(name: string) {
+  return `Salary — ${name}`
+}
+
+function isGeneratedSalaryAdvance(text?: string) {
+  const value = text?.trim() ?? ''
+  return !value || /^salary advance\s*[—–-]\s*/i.test(value)
+}
+
+function isGeneratedSalaryPayout(text?: string) {
+  const value = text?.trim() ?? ''
+  if (/^salary advance\s*[—–-]\s*/i.test(value)) return false
+  return !value || /^salary\s*[—–-]\s*/i.test(value)
+}
+
 export function VoucherDialog({
   open,
   type,
@@ -51,45 +99,92 @@ export function VoucherDialog({
   quarryName,
   heads,
   initial = null,
+  defaultHead,
+  lockHead = false,
+  defaultPersonId,
+  lockPerson = false,
+  defaultAmount,
+  defaultParticulars,
   onClose,
   onSave,
   onCreateHead,
 }: VoucherDialogProps) {
-  const { partiesForQuarry, customersForQuarry, vendorsForQuarry } = useParties()
+  const { partiesForQuarry, customersForQuarry, vendorsForQuarry, addParty } = useParties()
+  const { machineryNames, addMachineryName, transactions } = useTransactions()
+  const { batchesForQuarry, getBatch } = useMarkings()
+  const { staffForQuarry } = useStaff()
   const isCredit = type === 'Credit'
   const isEdit = Boolean(initial)
   const [form] = Form.useForm<FormValues>()
-  const headValue = Form.useWatch('head', form) ?? initial?.head ?? ''
+  const [saving, setSaving] = useState(false)
+  const [vendorFormOpen, setVendorFormOpen] = useState(false)
+  const [partySelectOpen, setPartySelectOpen] = useState(false)
+  const headValue =
+    Form.useWatch('head', form) ??
+    initial?.head ??
+    (isCredit ? 'Cash Received' : defaultHead ?? 'Diesel')
   const extraFields = useMemo(() => fieldsForCategory(headValue, type), [headValue, type])
+  const partyIdValue = Form.useWatch('partyId', form)
+  const markingBatchIdValue = Form.useWatch('markingBatchId', form)
+  const advanceLinkValue = Form.useWatch('advanceLink', form)
+  const isSalaryAdvance = isSalaryAdvanceHead(headValue)
+  const isSalaryPayout = isSalaryPayoutHead(headValue)
 
+  const partySource = extraFields.find((field) => field.key === 'party')?.partySource
   const partyOptions = useMemo(() => {
-    const head = headValue.toLowerCase()
+    const source =
+      partySource ??
+      (isCredit || headValue.toLowerCase() === 'cash received' ? 'customer' : 'all')
     const list =
-      isCredit || head === 'cash received'
+      source === 'customer'
         ? customersForQuarry(quarryId)
-        : head.includes('vendor')
+        : source === 'vendor'
           ? vendorsForQuarry(quarryId)
           : partiesForQuarry(quarryId)
     return list.map((party) => ({
       value: party.id,
-      label: `${party.name} · ${party.type}`,
+      label: source === 'all' ? `${party.name} · ${party.type}` : party.name,
     }))
-  }, [customersForQuarry, vendorsForQuarry, partiesForQuarry, quarryId, headValue, isCredit])
+  }, [customersForQuarry, vendorsForQuarry, partiesForQuarry, quarryId, partySource, isCredit, headValue])
 
   const advanceOptions = useMemo(() => {
-    const people = peopleForQuarry(quarryId).map((person) => ({
-      value: `p:${person.id}`,
-      label: `${person.name} · ${person.kind}`,
-    }))
-    const gangs = gangsForQuarry(quarryId).map((gang) => ({
-      value: `g:${gang.id}`,
-      label: `${gang.name} · FY ${gang.fy}`,
-    }))
+    const people = staffForQuarry(quarryId)
+      .filter((person) => person.status === 'Active' || person.id === initial?.personId || person.id === defaultPersonId)
+      .map((person) => ({
+        value: `p:${person.id}`,
+        label: `${person.name} · ${person.designation || 'Staff'}`,
+      }))
+    const gangs =
+      lockPerson || isSalaryAdvanceHead(headValue)
+        ? []
+        : gangsForQuarry(quarryId).map((gang) => ({
+            value: `g:${gang.id}`,
+            label: `${gang.name} · FY ${gang.fy}`,
+          }))
     return [
-      ...(people.length ? [{ label: 'Staff / Worker', options: people }] : []),
+      ...(people.length ? [{ label: 'Staff', options: people }] : []),
       ...(gangs.length ? [{ label: 'Labour gangs', options: gangs }] : []),
     ]
-  }, [quarryId])
+  }, [staffForQuarry, quarryId, initial?.personId, defaultPersonId, lockPerson, headValue])
+
+  const unpaidMarkings = useMemo(() => {
+    if (!partyIdValue) return []
+    return batchesForQuarry(quarryId)
+      .filter((batch) => batch.partyId === partyIdValue)
+      .filter((batch) => {
+        if (initial?.markingBatchId === batch.batchId) return true
+        return batchBalance(batch, transactions) > 0.5
+      })
+  }, [batchesForQuarry, quarryId, partyIdValue, transactions, initial?.markingBatchId])
+
+  const selectedMarking =
+    unpaidMarkings.find((batch) => batch.batchId === markingBatchIdValue) ??
+    (markingBatchIdValue ? getBatch(markingBatchIdValue) : undefined)
+
+  const markingAvailable = selectedMarking
+    ? batchBalance(selectedMarking, transactions) +
+      (initial?.markingBatchId === selectedMarking.batchId ? Number(initial.credit) || 0 : 0)
+    : 0
 
   useEffect(() => {
     if (!open) return
@@ -103,20 +198,41 @@ export function VoucherDialog({
         advanceLink: toAdvanceLink(initial.personId, initial.labourId),
         litres: initial.litres ?? undefined,
         refNote: initial.refNote ?? undefined,
+        paymentMethod: initial.paymentMethod ?? undefined,
+        markingBatchId: initial.markingBatchId ?? undefined,
       })
       return
     }
+    const openingHead = isCredit ? 'Cash Received' : defaultHead ?? 'Diesel'
+    const staffName = defaultPersonId
+      ? staffForQuarry(quarryId).find((row) => row.id === defaultPersonId)?.name
+      : undefined
+    const autoParticulars = staffName
+      ? isSalaryAdvanceHead(openingHead)
+        ? salaryAdvanceParticulars(staffName)
+        : isSalaryPayoutHead(openingHead)
+          ? salaryPayoutParticulars(staffName)
+          : ''
+      : ''
     form.setFieldsValue({
       date: dayjs(),
-      amount: undefined,
-      head: isCredit ? 'Cash Received' : 'Diesel',
-      particulars: '',
+      amount: defaultAmount,
+      head: openingHead,
+      particulars: defaultParticulars ?? autoParticulars,
       partyId: undefined,
-      advanceLink: undefined,
+      advanceLink: defaultPersonId ? toAdvanceLink(defaultPersonId) : undefined,
       litres: undefined,
       refNote: undefined,
+      paymentMethod: isCredit ? 'Cash' : undefined,
+      markingBatchId: undefined,
     })
-  }, [open, isCredit, form, initial])
+  }, [open, isCredit, form, initial, defaultHead, defaultPersonId, defaultAmount, defaultParticulars, quarryId, staffForQuarry])
+
+  useEffect(() => {
+    if (open) return
+    setVendorFormOpen(false)
+    setPartySelectOpen(false)
+  }, [open])
 
   // Clear extras that no longer apply when category changes
   useEffect(() => {
@@ -124,25 +240,88 @@ export function VoucherDialog({
     const keys = new Set(extraFields.map((field) => field.key))
     if (!keys.has('party')) form.setFieldValue('partyId', undefined)
     if (!keys.has('advanceLink')) form.setFieldValue('advanceLink', undefined)
+    else if (defaultPersonId && !form.getFieldValue('advanceLink')) {
+      form.setFieldValue('advanceLink', toAdvanceLink(defaultPersonId))
+    }
     if (!keys.has('litres')) form.setFieldValue('litres', undefined)
     if (!keys.has('refNote')) form.setFieldValue('refNote', undefined)
-  }, [extraFields, form, open])
+    if (!keys.has('paymentMethod')) form.setFieldValue('paymentMethod', undefined)
+    else if (!form.getFieldValue('paymentMethod')) form.setFieldValue('paymentMethod', 'Cash')
+    if (!keys.has('markingBatch')) form.setFieldValue('markingBatchId', undefined)
+  }, [extraFields, form, open, defaultPersonId])
+
+  useEffect(() => {
+    if (!open) return
+    const staffId = parseAdvanceLink(advanceLinkValue).personId ?? defaultPersonId
+    if (!staffId) return
+    const staff = staffForQuarry(quarryId).find((row) => row.id === staffId)
+    if (!staff) return
+    const current = String(form.getFieldValue('particulars') ?? '')
+    if (isSalaryAdvance) {
+      if (!isGeneratedSalaryAdvance(current)) return
+      const next = salaryAdvanceParticulars(staff.name)
+      if (current.trim() === next) return
+      form.setFieldValue('particulars', next)
+      return
+    }
+    if (isSalaryPayout) {
+      if (defaultParticulars && current.trim() === defaultParticulars.trim()) return
+      if (!isGeneratedSalaryPayout(current)) return
+      const next = defaultParticulars || salaryPayoutParticulars(staff.name)
+      if (current.trim() === next) return
+      form.setFieldValue('particulars', next)
+    }
+  }, [
+    open,
+    isSalaryAdvance,
+    isSalaryPayout,
+    advanceLinkValue,
+    defaultPersonId,
+    defaultParticulars,
+    quarryId,
+    staffForQuarry,
+    form,
+  ])
 
   const handleOk = async () => {
-    const values = await form.validateFields()
-    const link = parseAdvanceLink(values.advanceLink)
-    onSave({
-      date: values.date.format('YYYY-MM-DD'),
-      amount: values.amount,
-      head: values.head.trim(),
-      particulars: values.particulars?.trim() || (isCredit ? 'Cash received' : ''),
-      partyId: values.partyId ?? null,
-      personId: link.personId,
-      labourId: link.labourId,
-      litres: values.litres ?? null,
-      refNote: values.refNote?.trim() || null,
-    })
-    onClose()
+    try {
+      setSaving(true)
+      const values = await form.validateFields()
+      if (values.markingBatchId && selectedMarking && values.amount > markingAvailable + 1) {
+        message.warning(`Amount is more than balance ${money(markingAvailable)}`)
+        return
+      }
+      const link = parseAdvanceLink(values.advanceLink)
+      const staffName = link.personId
+        ? staffForQuarry(quarryId).find((row) => row.id === link.personId)?.name
+        : undefined
+      const particulars =
+        values.particulars?.trim() ||
+        (isSalaryAdvanceHead(values.head) && staffName
+          ? salaryAdvanceParticulars(staffName)
+          : isSalaryPayoutHead(values.head) && staffName
+            ? salaryPayoutParticulars(staffName)
+            : '')
+      await onSave({
+        date: values.date.format('YYYY-MM-DD'),
+        amount: values.amount,
+        head: values.head.trim(),
+        particulars,
+        partyId: values.partyId ?? null,
+        personId: link.personId,
+        labourId: link.labourId,
+        litres: values.litres ?? null,
+        refNote: values.refNote?.trim() || null,
+        paymentMethod: values.paymentMethod?.trim() || null,
+        markingBatchId: values.markingBatchId ?? null,
+      })
+      onClose()
+    } catch (error) {
+      const text = errorMessage(error)
+      if (text) message.error(text)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const showParty = extraFields.some((field) => field.key === 'party')
@@ -153,106 +332,290 @@ export function VoucherDialog({
   const litresField = extraFields.find((field) => field.key === 'litres')
   const showRef = extraFields.some((field) => field.key === 'refNote')
   const refField = extraFields.find((field) => field.key === 'refNote')
+  const showPaymentMethod = extraFields.some((field) => field.key === 'paymentMethod')
+  const paymentMethodField = extraFields.find((field) => field.key === 'paymentMethod')
+  const showMarking = extraFields.some((field) => field.key === 'markingBatch')
+  const markingField = extraFields.find((field) => field.key === 'markingBatch')
 
   return (
+    <>
     <Modal
       open={open}
       title={`${isEdit ? 'Edit' : 'Add'} ${isCredit ? 'credit' : 'debit'} — ${quarryName}`}
       onCancel={onClose}
       onOk={handleOk}
+      confirmLoading={saving}
       okText={isEdit ? 'Update' : 'Save'}
       destroyOnHidden
-      width={520}
+      width={640}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }} requiredMark="optional">
-        <Form.Item name="date" label="Date" rules={[{ required: true, message: 'Date is required' }]}>
-          <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" allowClear={false} />
-        </Form.Item>
-        <Form.Item
-          name="amount"
-          label="Amount"
-          rules={[
-            { required: true, message: 'Amount is required' },
-            { type: 'number', min: 1, message: 'Enter an amount of at least ₹1' },
-          ]}
+      <Form
+        form={form}
+        layout="vertical"
+        style={{ marginTop: 16 }}
+        requiredMark={(label, { required }) =>
+          required ? (
+            <>
+              {label}
+              <span style={{ color: '#ff4d4f', marginLeft: 4 }}>*</span>
+            </>
+          ) : (
+            label
+          )
+        }
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '0 16px',
+          }}
         >
-          <InputNumber min={1} style={{ width: '100%' }} placeholder="0" prefix="₹" controls={false} />
-        </Form.Item>
-        <Form.Item name="head" label="Category" rules={[{ required: true, message: 'Category is required' }]}>
-          <CategorySelect
-            options={heads}
-            allowCreate
-            placeholder="Select or add a category"
-            onCreate={onCreateHead}
-          />
-        </Form.Item>
-
-        {showParty && (
-          <Form.Item
-            name="partyId"
-            label={partyField?.label ?? 'Party'}
-            extra={partyField?.hint}
-            rules={
-              partyField?.required ? [{ required: true, message: 'Select a party' }] : undefined
-            }
-          >
-            <Select
-              allowClear={!partyField?.required}
-              showSearch
-              placeholder="Select party"
-              options={partyOptions}
-              optionFilterProp="label"
+          <Form.Item name="date" label="Date" rules={[{ required: true, message: 'Date is required' }]}>
+            <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" allowClear={false} />
+          </Form.Item>
+          <Form.Item name="head" label="Category" rules={[{ required: true, message: 'Category is required' }]}>
+            <CategorySelect
+              options={heads}
+              allowCreate={!lockHead}
+              allowClear={!lockHead}
+              disabled={lockHead}
+              placeholder="Select or add a category"
+              onCreate={onCreateHead}
             />
           </Form.Item>
-        )}
-
-        {showAdvance && (
           <Form.Item
-            name="advanceLink"
-            label={advanceField?.label ?? 'Link'}
-            extra={advanceField?.hint}
+            name="particulars"
+            label="Description"
+            extra={isSalaryAdvance || isSalaryPayout ? 'Filled from the staff name' : undefined}
             rules={
-              advanceField?.required
-                ? [{ required: true, message: 'Select staff, worker, or labour gang' }]
-                : undefined
+              isSalaryAdvance || isSalaryPayout
+                ? undefined
+                : [
+                    { required: true, message: 'Description is required' },
+                    { whitespace: true, message: 'Description is required' },
+                  ]
             }
           >
-            <Select
-              allowClear={!advanceField?.required}
-              showSearch
-              placeholder="Select person or gang"
-              options={advanceOptions}
-              optionFilterProp="label"
+            <Input
+              placeholder={
+                isSalaryAdvance
+                  ? 'Salary advance — staff name'
+                  : isSalaryPayout
+                    ? 'Salary — staff name'
+                    : isCredit
+                      ? 'e.g. Received from party'
+                      : 'e.g. Diesel purchase'
+              }
             />
           </Form.Item>
-        )}
-
-        {showLitres && (
-          <Form.Item name="litres" label={litresField?.label ?? 'Litres'} extra={litresField?.hint}>
-            <InputNumber min={1} style={{ width: '100%' }} placeholder="e.g. 500" controls={false} />
+          <Form.Item
+            name="amount"
+            label="Amount"
+            rules={[
+              { required: true, message: 'Amount is required' },
+              { type: 'number', min: 1, message: 'Enter an amount of at least ₹1' },
+            ]}
+          >
+            <NumberInput min={1} style={{ width: '100%' }} placeholder="0" prefix="₹" />
           </Form.Item>
-        )}
-
-        {showRef && (
-          <Form.Item name="refNote" label={refField?.label ?? 'Reference'} extra={refField?.hint}>
-            <Input placeholder={refField?.hint || 'Optional reference'} />
-          </Form.Item>
-        )}
-
-        {extraFields.length > 0 && (
-          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: -4 }}>
-            Extra fields for <strong>{headValue || 'this category'}</strong>
-          </Typography.Paragraph>
-        )}
-
-        <Form.Item
-          name="particulars"
-          label="Comment"
-          rules={isCredit ? [] : [{ required: true, message: 'Comment is required' }]}
-        >
-          <Input placeholder={isCredit ? 'e.g. Received from party' : 'e.g. Diesel purchase'} />
-        </Form.Item>
+          {showLitres && (
+            <Form.Item
+              name="litres"
+              label={litresField?.label ?? 'Litres'}
+              extra={litresField?.hint}
+              rules={
+                litresField?.required
+                  ? [
+                      { required: true, message: 'Litres is required' },
+                      { type: 'number', min: 1, message: 'Enter at least 1 litre' },
+                    ]
+                  : undefined
+              }
+            >
+              <NumberInput min={1} style={{ width: '100%' }} placeholder="e.g. 500" />
+            </Form.Item>
+          )}
+          {showRef && (
+            <Form.Item
+              name="refNote"
+              label={refField?.label ?? 'Reference'}
+              extra={refField?.hint}
+              rules={
+                refField?.required
+                  ? [
+                      { required: true, message: `${refField.label ?? 'Name'} is required` },
+                      { whitespace: true, message: `${refField.label ?? 'Name'} is required` },
+                    ]
+                  : undefined
+              }
+            >
+              {isMachineryRentHead(headValue) ? (
+                <CategorySelect
+                  options={machineryNames}
+                  allowCreate
+                  allowClear={!refField?.required}
+                  placeholder="Select machinery"
+                  createTitle="Add machinery"
+                  createFieldLabel="Machinery name"
+                  createPlaceholder="e.g. HM Crane, Hitachi 370"
+                  createButtonLabel="Add machinery"
+                  notFoundContent="No machinery yet"
+                  createdNoun="Machinery"
+                  onCreate={addMachineryName}
+                />
+              ) : (
+                <Input placeholder={refField?.hint || 'Optional reference'} />
+              )}
+            </Form.Item>
+          )}
+          {showParty && (
+            <Form.Item
+              name="partyId"
+              label={partyField?.label ?? 'Party'}
+              extra={partyField?.hint}
+              rules={partyField?.required ? [{ required: true, message: 'Select a party' }] : undefined}
+            >
+              <Select
+                allowClear={!partyField?.required}
+                showSearch
+                open={partySelectOpen}
+                onOpenChange={setPartySelectOpen}
+                notFoundContent={partySource === 'vendor' ? 'No vendors yet' : undefined}
+                placeholder={partySource === 'vendor' ? 'Select vendor' : 'Select party'}
+                options={partyOptions}
+                optionFilterProp="label"
+                onChange={() => form.setFieldValue('markingBatchId', undefined)}
+                dropdownRender={
+                  partySource === 'vendor'
+                    ? (menu) => (
+                        <>
+                          {menu}
+                          <Divider style={{ margin: '8px 0' }} />
+                          <Button
+                            type="text"
+                            icon={<PlusOutlined />}
+                            style={{ width: '100%', textAlign: 'left' }}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setPartySelectOpen(false)
+                              setVendorFormOpen(true)
+                            }}
+                          >
+                            Add vendor
+                          </Button>
+                        </>
+                      )
+                    : undefined
+                }
+              />
+            </Form.Item>
+          )}
+          {showPaymentMethod && (
+            <Form.Item
+              name="paymentMethod"
+              label={paymentMethodField?.label ?? 'Payment type'}
+              extra={paymentMethodField?.hint}
+              rules={
+                paymentMethodField?.required
+                  ? [{ required: true, message: 'Select payment type' }]
+                  : undefined
+              }
+            >
+              <PaymentMethodSelect />
+            </Form.Item>
+          )}
+          {showMarking && (
+            <Form.Item
+              name="markingBatchId"
+              label={markingField?.label ?? 'Apply to marking'}
+              extra={
+                selectedMarking
+                  ? `Invoice ${money(selectedMarking.total)} · pending ${money(markingAvailable)}`
+                  : !partyIdValue
+                    ? 'Select a customer first'
+                    : unpaidMarkings.length === 0
+                      ? 'No unpaid markings for this customer'
+                      : markingField?.hint
+              }
+              rules={
+                markingField?.required
+                  ? [{ required: true, message: 'Select a marking to apply this payment' }]
+                  : undefined
+              }
+            >
+              <Select
+                allowClear
+                showSearch
+                disabled={!partyIdValue}
+                placeholder={partyIdValue ? 'Optional — unpaid invoice' : 'Select a customer first'}
+                optionFilterProp="label"
+                notFoundContent="No unpaid markings"
+                options={unpaidMarkings.map((batch) => ({
+                  value: batch.batchId,
+                  label: `${formatMarkingNo(batch)} · ${dayjs(batch.date).format('DD MMM YYYY')} · pending ${money(
+                    batch.batchId === initial?.markingBatchId
+                      ? batchBalance(batch, transactions) + (Number(initial.credit) || 0)
+                      : batchBalance(batch, transactions),
+                  )}`,
+                }))}
+                onChange={(batchId) => {
+                  if (!batchId) return
+                  const batch = unpaidMarkings.find((row) => row.batchId === batchId)
+                  if (!batch) return
+                  const remaining =
+                    batch.batchId === initial?.markingBatchId
+                      ? batchBalance(batch, transactions) + (Number(initial.credit) || 0)
+                      : batchBalance(batch, transactions)
+                  const rounded = Math.max(0, Math.round(remaining))
+                  if (rounded > 0) form.setFieldValue('amount', rounded)
+                }}
+              />
+            </Form.Item>
+          )}
+          {showAdvance && (
+            <Form.Item
+              name="advanceLink"
+              label={advanceField?.label ?? 'Link'}
+              extra={
+                lockPerson
+                  ? 'This advance is linked to this staff member'
+                  : advanceField?.hint
+              }
+              rules={
+                advanceField?.required
+                  ? [{ required: true, message: isSalaryAdvance ? 'Select staff' : 'Select staff or labour gang' }]
+                  : undefined
+              }
+            >
+              <Select
+                allowClear={!advanceField?.required && !lockPerson}
+                showSearch
+                disabled={lockPerson}
+                placeholder={isSalaryAdvance ? 'Select staff' : 'Select staff or labour gang'}
+                options={advanceOptions}
+                optionFilterProp="label"
+              />
+            </Form.Item>
+          )}
+        </div>
       </Form>
     </Modal>
+    {vendorFormOpen && (
+      <CustomerFormModal
+        open
+        quarryId={quarryId}
+        defaultType="Vendor"
+        zIndex={1200}
+        onClose={() => setVendorFormOpen(false)}
+        onSave={async (draft) => {
+          const type = draft.type === 'Customer' ? 'Vendor' : draft.type
+          const party = await addParty({ ...draft, type })
+          form.setFieldValue('partyId', party.id)
+          message.success(`Vendor “${party.name}” added`)
+        }}
+      />
+    )}
+    </>
   )
 }
