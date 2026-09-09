@@ -1,0 +1,162 @@
+QUOTATION
+Quarry Management Application
+
+Quotation No.     :  QT/AG/2026/001
+Date              :  09 September 2026
+Validity          :  30 days from the date of this quotation
+
+
+1. FROM (VENDOR)
+
+Name              :  Thamaraikannan
+Service           :  Custom Software Development
+Phone / Email     :  _______________________________
+GSTIN             :  _______________________________   (if applicable)
+Address           :  _______________________________
+
+
+2. TO (CLIENT)
+
+Name              :  Arun Granites
+Attn              :  B. Arun (Owner)
+Sites             :  Chithanavasal Quarry, Illuppur / Pudukkottai
+                     Ariyur Quarry, Madurai District
+Subject           :  Development of Quarry Management Application
+
+
+3. PROJECT SUMMARY
+
+Design, development, and delivery of a web-based Quarry Management Application
+for day-to-day operations across the above quarry sites — covering production
+(block marking and load), parties, purchase and expense, HR and payroll, and
+multi-user access with roles.
+
+The application is quarry-wise (switch between Chithanavasal and Ariyur) and
+supports Owner, Accountant, and Viewer roles.
+
+
+4. SCOPE OF WORK  (included in this quotation)
+
+4.1  Overview
+     •  Dashboard — monthly summary, cash flow, category breakup, production
+     •  All Transactions — unified debit / credit register with filters
+
+4.2  Procurement & Sale
+     •  Block Marking — batches, GST, party, payment, marking numbers
+     •  Block Load / Dispatch — trips, vehicles, linked blocks
+     •  Customer master and customer ledger / detail
+
+4.3  Purchase & Expense
+     •  Purchase & Expense vouchers
+     •  Monthly Gift
+     •  Royalty
+     •  Machinery Rent
+     •  Vendor master and vendor ledger / detail
+
+4.4  HR & Payroll
+     •  Staff Management
+     •  Daily Attendance
+     •  Salary Sheet
+
+4.5  Setup & Access
+     •  Masters — quarry setup and default GST
+     •  Users & roles — Owner / Accountant / Viewer, quarry access
+     •  Login and session security
+
+4.6  Delivery
+     •  Web application (desktop and mobile browser)
+     •  Deployment to the live environment
+     •  Basic user training for office staff
+     •  Source handover as mutually agreed at go-live
+
+
+5. NOT INCLUDED IN THE ₹2,00,000 BUILD
+   (available during complimentary 1-year support, as agreed)
+
+     •  Reports / Profit & Loss
+     •  Procurement & Sale (extended sale workflow)
+     •  Proforma Invoice
+     •  Finance / Loan
+
+     Hosting, domain, SMS, and cloud database charges are billed at actuals
+     or paid directly by the client. Government / GST filing is not included.
+
+
+6. COMMERCIALS
+
+---------------------------------------------------------------------------
+  S.No   Description                                         Amount (INR)
+---------------------------------------------------------------------------
+   1     Quarry Management Application — design,
+         development, testing, deployment, and
+         training (scope in Section 4)                       2,00,000
+---------------------------------------------------------------------------
+         Sub-total                                           2,00,000
+         GST                                                 Extra, as applicable
+---------------------------------------------------------------------------
+         Project fee                                         ₹ 2,00,000
+---------------------------------------------------------------------------
+
+Amount in words :  Rupees Two Lakh Only  (plus GST if applicable)
+
+
+7. COMPLIMENTARY OFFER  —  1 YEAR SUPPORT
+
+Along with this project, the following is provided at no extra development fee
+for twelve (12) months from the date of go-live:
+
+     •  Bug fixes and operational support for the delivered modules
+     •  Additional features and the pending items in Section 5, taken up
+        by mutual agreement during the support year
+     •  Support via WhatsApp / email during normal working hours
+     •  Typical first response within 24–48 working hours
+
+The complimentary year does not include a new product rewrite, a native
+mobile app, or third-party licence / hosting costs. Large new modules will
+be scoped together so delivery stays practical within the support year.
+
+
+8. PAYMENT TERMS
+
+     •  50%  —  ₹ 1,00,000  on confirmation / work start
+     •  50%  —  ₹ 1,00,000  on go-live / handover
+
+     Payment by bank transfer / UPI to the account below.
+
+     Account name     :  _______________________________
+     Bank / branch    :  _______________________________
+     Account number   :  _______________________________
+     IFSC             :  _______________________________
+     UPI              :  _______________________________
+
+
+9. TIMELINE
+
+     Confirmation to go-live of Section 4 modules :  as per current build
+     (application modules listed in Section 4 are ready for client use).
+     Complimentary support                         :  12 months from go-live
+
+
+10. TERMS
+
+     1. This quotation is valid for 30 days.
+     2. Work starts after written confirmation and receipt of the advance.
+     3. Change requests outside Section 4 during the build will be estimated
+        separately, unless taken up under the complimentary support year.
+     4. The client will provide quarry masters, staff lists, GST %, and
+        user names required for setup.
+     5. The software is licensed to Arun Granites for the quoted quarry
+        operations. Redistribution or resale is not permitted.
+     6. Data backup on the live server will be configured; the client remains
+        responsible for keeping their own periodic backups.
+     7. This quotation does not cover statutory tax filing or CA work.
+
+
+For Arun Granites                              For the Vendor
+
+Signature : _______________                    Signature : _______________
+Name      : B. Arun                            Name      : Thamaraikannan
+Date      : _______________                    Date      : 09 September 2026
+
+
+Thank you. We look forward to working with Arun Granites.

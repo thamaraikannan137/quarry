@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { UniqueConstraintError } from 'sequelize'
 import { z } from 'zod'
 
 import { Quarry } from '../db/models/index.js'
@@ -23,18 +24,25 @@ quarriesRouter.get(
   }),
 )
 
+const codeSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/, 'Use letters, numbers, hyphen or underscore')
+  .transform((value) => value.toUpperCase())
+
 const quarrySchema = z.object({
   id: z.string().min(1).optional(),
-  name: z.string().min(1),
-  code: z.string().min(1),
-  place: z.string().optional().nullable(),
+  name: z.string().trim().min(1),
+  code: codeSchema,
+  place: z.string().trim().optional().nullable(),
   gstPct: z.number().nonnegative().max(100).optional(),
 })
 
 const quarryPatchSchema = z.object({
-  name: z.string().min(1).optional(),
-  code: z.string().min(1).optional(),
-  place: z.string().optional().nullable(),
+  name: z.string().trim().min(1).optional(),
+  code: codeSchema.optional(),
+  place: z.string().trim().optional().nullable(),
   gstPct: z.number().nonnegative().max(100).optional(),
 })
 
@@ -44,14 +52,21 @@ quarriesRouter.post(
     const parsed = quarrySchema.safeParse(req.body)
     if (!parsed.success) return badRequest(res, parsed.error.message)
     const id = parsed.data.id ?? `q_${parsed.data.code.toLowerCase()}`
-    const row = await Quarry.create({
-      id,
-      name: parsed.data.name,
-      code: parsed.data.code,
-      place: parsed.data.place ?? null,
-      gstPct: parsed.data.gstPct ?? 18,
-    })
-    res.status(201).json(row)
+    try {
+      const row = await Quarry.create({
+        id,
+        name: parsed.data.name,
+        code: parsed.data.code,
+        place: parsed.data.place || null,
+        gstPct: parsed.data.gstPct ?? 18,
+      })
+      res.status(201).json(row)
+    } catch (err) {
+      if (err instanceof UniqueConstraintError) {
+        return badRequest(res, 'A quarry with this code already exists')
+      }
+      throw err
+    }
   }),
 )
 
@@ -63,7 +78,14 @@ quarriesRouter.put(
     const parsed = quarryPatchSchema.safeParse(req.body)
     if (!parsed.success) return badRequest(res, parsed.error.message)
     if (Object.keys(parsed.data).length === 0) return badRequest(res, 'No fields to update')
-    await row.update(parsed.data)
-    res.json(row)
+    try {
+      await row.update(parsed.data)
+      res.json(row)
+    } catch (err) {
+      if (err instanceof UniqueConstraintError) {
+        return badRequest(res, 'A quarry with this code already exists')
+      }
+      throw err
+    }
   }),
 )

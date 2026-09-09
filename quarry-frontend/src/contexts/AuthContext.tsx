@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
+import { loginUser, toSessionUser } from '@/api/auth'
+import { errorMessage } from '@/api/http'
 import { listQuarries } from '@/api/quarries'
 import { themeConfig } from '@/configs/themeConfig'
-import { DEMO_QUARRIES, DEMO_USERS } from '@/data/demoUsers'
+import { DEMO_QUARRIES } from '@/data/demoUsers'
 import type { Quarry, SessionUser } from '@/types/app'
 
 type SignInResult = { ok: true } | { ok: false; message: string }
@@ -12,10 +14,12 @@ type AuthContextValue = {
   quarries: Quarry[]
   allowedQuarries: Quarry[]
   activeQuarry: Quarry | undefined
-  signIn: (username: string, password: string, remember?: boolean) => SignInResult
+  signIn: (username: string, password: string, remember?: boolean) => Promise<SignInResult>
   signOut: () => void
   setActiveQuarry: (quarryId: string) => void
+  addQuarry: (quarry: Quarry) => void
   updateQuarry: (id: string, patch: Partial<Quarry>) => void
+  patchSession: (patch: Partial<SessionUser>) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -36,6 +40,10 @@ function persistSession(user: SessionUser, remember: boolean) {
   sessionStorage.removeItem(themeConfig.sessionStorageKey)
   if (remember) localStorage.setItem(themeConfig.sessionStorageKey, payload)
   else sessionStorage.setItem(themeConfig.sessionStorageKey, payload)
+}
+
+function sessionRemembered() {
+  return Boolean(localStorage.getItem(themeConfig.sessionStorageKey))
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -60,23 +68,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [allowedQuarries, user?.lastQuarryId],
   )
 
-  const signIn = useCallback((username: string, password: string, remember = true): SignInResult => {
-    const found = DEMO_USERS.find(
-      (demo) => demo.active && demo.username === username.trim() && demo.password === password,
-    )
-    if (!found) return { ok: false, message: 'Invalid username or password' }
-
-    const session: SessionUser = {
-      id: found.id,
-      name: found.name,
-      username: found.username,
-      role: found.role,
-      quarryIds: found.quarryIds,
-      lastQuarryId: found.lastQuarryId,
+  const signIn = useCallback(async (username: string, password: string, remember = true): Promise<SignInResult> => {
+    try {
+      const found = await loginUser(username.trim(), password)
+      const session = toSessionUser(found)
+      persistSession(session, remember)
+      setUser(session)
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, message: errorMessage(error, 'Invalid username or password') ?? 'Invalid username or password' }
     }
-    persistSession(session, remember)
-    setUser(session)
-    return { ok: true }
   }, [])
 
   const signOut = useCallback(() => {
@@ -89,8 +90,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((current) => {
       if (!current) return current
       const next = { ...current, lastQuarryId: quarryId }
-      const remember = Boolean(localStorage.getItem(themeConfig.sessionStorageKey))
-      persistSession(next, remember)
+      persistSession(next, sessionRemembered())
+      return next
+    })
+  }, [])
+
+  const patchSession = useCallback((patch: Partial<SessionUser>) => {
+    setUser((current) => {
+      if (!current) return current
+      const next = { ...current, ...patch }
+      persistSession(next, sessionRemembered())
+      return next
+    })
+  }, [])
+
+  const addQuarry = useCallback((quarry: Quarry) => {
+    setQuarries((current) => (current.some((row) => row.id === quarry.id) ? current : [...current, quarry]))
+    setUser((current) => {
+      if (!current) return current
+      const hasAll = current.role === 'Owner' || current.quarryIds.includes('*')
+      const quarryIds = hasAll || current.quarryIds.includes(quarry.id) ? current.quarryIds : [...current.quarryIds, quarry.id]
+      const next = { ...current, quarryIds, lastQuarryId: quarry.id }
+      persistSession(next, sessionRemembered())
       return next
     })
   }, [])
@@ -108,9 +129,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signOut,
       setActiveQuarry,
+      addQuarry,
       updateQuarry,
+      patchSession,
     }),
-    [user, quarries, allowedQuarries, activeQuarry, signIn, signOut, setActiveQuarry, updateQuarry],
+    [user, quarries, allowedQuarries, activeQuarry, signIn, signOut, setActiveQuarry, addQuarry, updateQuarry, patchSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -122,8 +145,8 @@ export function useAuth() {
   return ctx
 }
 
-export function quarryAccessLabel(user: SessionUser) {
+export function quarryAccessLabel(user: SessionUser, quarries: Quarry[] = DEMO_QUARRIES) {
   if (user.role === 'Owner' || user.quarryIds.includes('*')) return 'All quarries'
-  const names = DEMO_QUARRIES.filter((quarry) => user.quarryIds.includes(quarry.id)).map((quarry) => quarry.name)
+  const names = quarries.filter((quarry) => user.quarryIds.includes(quarry.id)).map((quarry) => quarry.name)
   return names.join(', ') || 'No quarry access'
 }

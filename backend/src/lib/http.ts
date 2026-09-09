@@ -20,3 +20,7 @@ export function notFound(res: Response, message = 'Not found') {
 export function badRequest(res: Response, message: string) {
   return res.status(400).json({ error: message })
 }
+
+export function unauthorized(res: Response, message = 'Invalid username or password') {
+  return res.status(401).json({ error: message })
+}

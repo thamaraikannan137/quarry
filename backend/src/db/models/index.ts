@@ -6,6 +6,7 @@ import { Party } from './Party.js'
 import { Quarry } from './Quarry.js'
 import { Staff } from './Staff.js'
 import { Transaction } from './Transaction.js'
+import { User } from './User.js'
 
 Quarry.hasMany(Party, { foreignKey: 'quarryId' })
 Party.belongsTo(Quarry, { foreignKey: 'quarryId' })
@@ -44,4 +45,4 @@ Quarry.hasMany(AttendanceMark, { foreignKey: 'quarryId' })
 AttendanceMark.belongsTo(Quarry, { foreignKey: 'quarryId' })
 
 export { sequelize } from '../sequelize.js'
-export { AttendanceMark, BlockMarking, DispatchTrip, DispatchTripBlock, Party, Quarry, Staff, Transaction }
+export { AttendanceMark, BlockMarking, DispatchTrip, DispatchTripBlock, Party, Quarry, Staff, Transaction, User }

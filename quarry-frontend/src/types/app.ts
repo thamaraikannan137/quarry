@@ -1,4 +1,5 @@
-export type Role = 'Owner' | 'Accountant' | 'Viewer'
+export const ROLES = ['Owner', 'Accountant', 'Viewer'] as const
+export type Role = (typeof ROLES)[number]
 
 export type ThemeMode = 'system' | 'light' | 'dark'
 
@@ -27,9 +28,12 @@ export type SessionUser = {
   lastQuarryId: string
 }
 
-export type DemoUser = SessionUser & {
-  password: string
+export type AppUser = SessionUser & {
   active: boolean
+}
+
+export type DemoUser = AppUser & {
+  password: string
 }
 
 export type NavItem = {

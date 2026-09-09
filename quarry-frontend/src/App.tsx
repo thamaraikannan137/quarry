@@ -26,6 +26,7 @@ import { StaffPage } from '@/pages/StaffPage'
 import { TransactionsPage } from '@/pages/TransactionsPage'
 import { VendorDetailPage } from '@/pages/VendorDetailPage'
 import { VendorsPage } from '@/pages/VendorsPage'
+import { UsersPage } from '@/pages/UsersPage'
 import { GuestOnly } from '@/routes/GuestOnly'
 import { Protected } from '@/routes/Protected'
 import { flattenNav } from '@/data/navItems'
@@ -45,6 +46,7 @@ const READY_PATHS = new Set([
   '/attendance',
   '/salary',
   '/masters',
+  '/users',
 ])
 
 export default function App() {
@@ -80,6 +82,7 @@ export default function App() {
           <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/salary" element={<SalaryPage />} />
           <Route path="/masters" element={<MastersPage />} />
+          <Route path="/users" element={<UsersPage />} />
           {stubs.map((item) => (
             <Route key={item.path} path={item.path} element={<PlaceholderPage />} />
           ))}

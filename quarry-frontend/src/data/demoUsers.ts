@@ -59,10 +59,3 @@ export const DEMO_USERS: DemoUser[] = [
     active: true,
   },
 ]
-
-export const DEMO_LOGINS = [
-  { username: 'owner', password: 'owner123', hint: 'all quarries' },
-  { username: 'accounts', password: 'acc123', hint: 'both quarries' },
-  { username: 'chitha', password: 'chitha123', hint: 'Chithanavasal only' },
-  { username: 'view', password: 'view123', hint: 'Dashboard & P&L only' },
-] as const

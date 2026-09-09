@@ -7,7 +7,7 @@ import { quarryAccessLabel, useAuth } from '@/contexts/AuthContext'
 import { useSettings } from '@/contexts/SettingsContext'
 
 export function UserDropdown() {
-  const { user, signOut } = useAuth()
+  const { user, quarries, signOut } = useAuth()
   const { settings, updateSettings } = useSettings()
 
   if (!user) return null
@@ -24,7 +24,7 @@ export function UserDropdown() {
           </Typography.Text>
           <br />
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {quarryAccessLabel(user)}
+            {quarryAccessLabel(user, quarries)}
           </Typography.Text>
         </div>
       ),
