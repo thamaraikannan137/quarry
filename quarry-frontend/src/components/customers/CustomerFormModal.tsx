@@ -2,10 +2,28 @@ import { DatePicker, Form, Input, Modal, Select, Tabs, message } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
 
-import { errorMessage } from '@/api/http'
+import { errorMessage, isFormValidationError } from '@/api/http'
 import { NumberInput } from '@/components/common'
 
 import { TN_STATES, emptyPartyDraft, type GstType, type Party, type PartyDraft, type PartyKind } from '@/types/party'
+
+type TabKey = 'gst' | 'credit' | 'more'
+
+const CREDIT_FIELDS = new Set(['openingBalance', 'asOf', 'creditLimit', 'type'])
+const MORE_FIELDS = new Set(['contact', 'notes'])
+
+function tabForField(name: unknown): TabKey {
+  const key = Array.isArray(name) ? name[0] : name
+  if (typeof key === 'string' && CREDIT_FIELDS.has(key)) return 'credit'
+  if (typeof key === 'string' && MORE_FIELDS.has(key)) return 'more'
+  return 'gst'
+}
+
+function asOfIso(value: unknown, fallback: string) {
+  if (dayjs.isDayjs(value) && value.isValid()) return value.format('YYYY-MM-DD')
+  if (typeof value === 'string' && dayjs(value).isValid()) return dayjs(value).format('YYYY-MM-DD')
+  return fallback
+}
 
 type CustomerFormModalProps = {
   open: boolean
@@ -45,10 +63,12 @@ export function CustomerFormModal({
 }: CustomerFormModalProps) {
   const [form] = Form.useForm<FormValues>()
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabKey>('gst')
   const isEdit = Boolean(initial)
 
   useEffect(() => {
     if (!open) return
+    setActiveTab('gst')
     if (initial) {
       form.setFieldsValue({
         name: initial.name,
@@ -88,23 +108,26 @@ export function CustomerFormModal({
         name: values.name,
         phone: values.phone || '',
         gstin: isVendor ? initial?.gstin || '—' : values.gstin || '—',
-        gstType: isVendor ? initial?.gstType || blank.gstType : values.gstType,
+        gstType: isVendor ? initial?.gstType || blank.gstType : values.gstType || blank.gstType,
         state: isVendor ? initial?.state || '' : values.state || '',
         email: isVendor ? initial?.email || '' : values.email || '',
         billingAddress: values.billingAddress || '',
         shippingAddress: isVendor ? initial?.shippingAddress || '' : values.shippingAddress || '',
         openingBalance: isVendor ? initial?.openingBalance || 0 : values.openingBalance || 0,
-        asOf: isVendor
-          ? initial?.asOf || blank.asOf
-          : values.asOf.format('YYYY-MM-DD'),
+        asOf: isVendor ? initial?.asOf || blank.asOf : asOfIso(values.asOf, blank.asOf),
         creditLimit: isVendor ? initial?.creditLimit || 0 : values.creditLimit || 0,
-        type: isVendor ? 'Vendor' : values.type,
+        type: isVendor ? 'Vendor' : values.type || defaultType,
         contact: isVendor ? initial?.contact || '' : values.contact || '',
         notes: isVendor ? initial?.notes || '' : values.notes || '',
         quarryIds: initial?.quarryIds ?? [quarryId],
       })
       onClose()
     } catch (error) {
+      if (isFormValidationError(error) && error && typeof error === 'object' && 'errorFields' in error) {
+        const fields = (error as { errorFields: { name: unknown }[] }).errorFields
+        setActiveTab(tabForField(fields[0]?.name))
+        return
+      }
       const text = errorMessage(error)
       if (text) message.error(text)
     } finally {
@@ -163,10 +186,13 @@ export function CustomerFormModal({
         </div>
 
         <Tabs
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key as TabKey)}
           items={[
             {
               key: 'gst',
               label: 'GST & Address',
+              forceRender: true,
               children: (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <Form.Item name="gstType" label="GST type">
@@ -200,18 +226,19 @@ export function CustomerFormModal({
             {
               key: 'credit',
               label: 'Credit & Balance',
+              forceRender: true,
               children: (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <Form.Item name="openingBalance" label="Opening balance">
                     <NumberInput min={0} style={{ width: '100%' }} prefix="₹" />
                   </Form.Item>
-                  <Form.Item name="asOf" label="As of date" rules={[{ required: true }]}>
+                  <Form.Item name="asOf" label="As of date">
                     <DatePicker style={{ width: '100%' }} format="DD MMM YYYY" />
                   </Form.Item>
                   <Form.Item name="creditLimit" label="Credit limit">
                     <NumberInput min={0} style={{ width: '100%' }} prefix="₹" />
                   </Form.Item>
-                  <Form.Item name="type" label="Party type" rules={[{ required: true }]}>
+                  <Form.Item name="type" label="Party type">
                     <Select
                       options={
                         defaultType === 'Customer'
@@ -233,6 +260,7 @@ export function CustomerFormModal({
             {
               key: 'more',
               label: 'Additional',
+              forceRender: true,
               children: (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <Form.Item name="contact" label="Contact person">
