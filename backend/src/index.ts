@@ -12,6 +12,7 @@ import { ensureGstSettings } from './lib/ensureGstSettings.js'
 import { ensureMarkingNumbers } from './lib/markingNo.js'
 import { ensureSchema } from './lib/ensureSchema.js'
 import { ensureSplitParties } from './lib/ensureSplitParties.js'
+import { logger, requestLogger } from './lib/logger.js'
 import { attendanceRouter } from './routes/attendance.js'
 import { authRouter } from './routes/auth.js'
 import { customersRouter } from './routes/customers.js'
@@ -30,6 +31,7 @@ const port = Number(process.env.PORT || 4000)
 
 app.use(cors())
 app.use(express.json({ limit: '2mb' }))
+app.use(requestLogger)
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'quarry-api' })
@@ -69,9 +71,9 @@ app.use('/api/transactions', transactionsRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err)
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const message = err instanceof Error ? err.message : 'Server error'
+  logger.error(`${req.method} ${req.originalUrl || req.url} failed: ${message}`, err)
   res.status(500).json({ error: message })
 })
 
@@ -88,11 +90,11 @@ async function main() {
   await ensureDefaultStaff()
   await ensureDefaultUsers()
   app.listen(port, () => {
-    console.log(`Quarry API listening on http://localhost:${port}`)
+    logger.info(`Quarry API listening on http://localhost:${port}`)
   })
 }
 
 main().catch((err) => {
-  console.error('Failed to start API', err)
+  logger.error('Failed to start API', err)
   process.exit(1)
 })

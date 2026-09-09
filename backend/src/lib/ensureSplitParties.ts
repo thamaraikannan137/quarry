@@ -1,6 +1,7 @@
 import { QueryTypes } from 'sequelize'
 
 import { sequelize } from '../db/models/index.js'
+import { logger } from './logger.js'
 
 async function tableExists(name: string) {
   const rows = await sequelize.query<{ rel: string | null }>(
@@ -54,5 +55,5 @@ export async function ensureSplitParties() {
   await sequelize.query('ALTER TABLE "BlockMarking" DROP CONSTRAINT IF EXISTS "BlockMarking_partyId_fkey"')
   await sequelize.query('ALTER TABLE "Transaction" DROP CONSTRAINT IF EXISTS "Transaction_partyId_fkey"')
   await sequelize.query('DROP TABLE IF EXISTS "Party"')
-  console.log(`Split Party → Customer (${customers}) + Vendor (${vendors})`)
+  logger.info(`Split Party → Customer (${customers}) + Vendor (${vendors})`)
 }

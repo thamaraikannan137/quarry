@@ -2,15 +2,21 @@ import { QueryTypes } from 'sequelize'
 
 import { sequelize } from '../db/models/index.js'
 import { isLocalDatabase } from '../db/sequelize.js'
+import { logger } from './logger.js'
 
-export async function ensureSchema() {
+async function missingTable(name: string) {
   const rows = await sequelize.query<{ rel: string | null }>(
-    `SELECT to_regclass('public."AttendanceMark"') AS rel`,
+    `SELECT to_regclass('public."${name}"') AS rel`,
     { type: QueryTypes.SELECT },
   )
-  const missing = !rows[0]?.rel
-  const shouldSync = process.env.DB_SYNC === '1' || isLocalDatabase() || missing
+  return !rows[0]?.rel
+}
+
+export async function ensureSchema() {
+  const missingCore = await missingTable('AttendanceMark')
+  const missingSplit = (await missingTable('Customer')) || (await missingTable('Vendor'))
+  const shouldSync = process.env.DB_SYNC === '1' || isLocalDatabase() || missingCore || missingSplit
   if (!shouldSync) return
   await sequelize.sync()
-  if (missing) console.log('Created missing database tables')
+  if (missingCore || missingSplit) logger.info('Created missing database tables')
 }
