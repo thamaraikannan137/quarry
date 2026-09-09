@@ -11,9 +11,11 @@ import { ensureDateColumns } from './lib/ensureDateColumns.js'
 import { ensureGstSettings } from './lib/ensureGstSettings.js'
 import { ensureMarkingNumbers } from './lib/markingNo.js'
 import { ensureSchema } from './lib/ensureSchema.js'
+import { ensureSplitParties } from './lib/ensureSplitParties.js'
 import { attendanceRouter } from './routes/attendance.js'
 import { authRouter } from './routes/auth.js'
 import { customersRouter } from './routes/customers.js'
+import { vendorsRouter } from './routes/vendors.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { loadsRouter } from './routes/loads.js'
 import { markingsRouter } from './routes/markings.js'
@@ -41,6 +43,7 @@ app.get('/api', (_req, res) => {
       'GET /api/dashboard',
       'GET /api/quarries',
       'GET|POST|PUT|DELETE /api/customers',
+      'GET|POST|PUT|DELETE /api/vendors',
       'GET|POST|PUT|DELETE /api/markings',
       'GET|POST|PUT|DELETE /api/loads',
       'GET|POST|PUT|DELETE /api/staff',
@@ -56,6 +59,7 @@ app.get('/api', (_req, res) => {
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/quarries', quarriesRouter)
 app.use('/api/customers', customersRouter)
+app.use('/api/vendors', vendorsRouter)
 app.use('/api/markings', markingsRouter)
 app.use('/api/loads', loadsRouter)
 app.use('/api/staff', staffRouter)
@@ -74,6 +78,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 async function main() {
   await sequelize.authenticate()
   await ensureSchema()
+  await ensureSplitParties()
   await AttendanceMark.update({ status: 'HalfDay' }, { where: { status: 'Holiday' } })
   await ensureMarkingNumbers()
   await ensureDateColumns()

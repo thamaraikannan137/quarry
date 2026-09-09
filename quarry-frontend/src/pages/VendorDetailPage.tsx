@@ -101,8 +101,8 @@ export function VendorDetailPage() {
           <StatCard
             title="Pending payable"
             value={pending}
-            formatter={(value) => money(Number(value))}
-            valueColor={pending > 0 ? '#cf1322' : pending < 0 ? '#389e0d' : undefined}
+            formatter={(value) => (Number(value) > 0 ? money(Number(value)) : '—')}
+            valueColor={pending > 0 ? '#cf1322' : undefined}
           />
         </Col>
         <Col xs={12} sm={8} flex="1 1 140px">

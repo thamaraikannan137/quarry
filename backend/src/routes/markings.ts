@@ -4,8 +4,8 @@ import { z } from 'zod'
 
 import {
   BlockMarking,
+  Customer,
   DispatchTripBlock,
-  Party,
   sequelize,
 } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
@@ -100,7 +100,7 @@ async function findBatchBlocks(batchId: string) {
     where: { batchId },
     include: [
       { model: DispatchTripBlock, as: 'loads', attributes: ['tripId'] },
-      { model: Party, as: 'party' },
+      { model: Customer, as: 'party' },
     ],
     order: [['blockNo', 'ASC']],
   })
@@ -165,9 +165,9 @@ markingsRouter.post(
     if (!parsed.success) return badRequest(res, parsed.error.message)
 
     const { date, partyId, quarryId, markerName, lines } = parsed.data
-    const party = await Party.findByPk(partyId)
-    if (!party) return badRequest(res, 'Invalid partyId')
-    if (party.quarryId !== quarryId) return badRequest(res, 'Party does not belong to quarry')
+    const party = await Customer.findByPk(partyId)
+    if (!party) return badRequest(res, 'Invalid customer')
+    if (party.quarryId !== quarryId) return badRequest(res, 'Customer does not belong to quarry')
 
     const batchId = newId('mb')
     const markingNo = await nextMarkingNo(quarryId)
@@ -214,9 +214,9 @@ markingsRouter.put(
     if (!parsed.success) return badRequest(res, parsed.error.message)
 
     const { date, partyId, quarryId, markerName, lines } = parsed.data
-    const party = await Party.findByPk(partyId)
-    if (!party) return badRequest(res, 'Invalid partyId')
-    if (party.quarryId !== quarryId) return badRequest(res, 'Party does not belong to quarry')
+    const party = await Customer.findByPk(partyId)
+    if (!party) return badRequest(res, 'Invalid customer')
+    if (party.quarryId !== quarryId) return badRequest(res, 'Customer does not belong to quarry')
 
     const markingNo = existing[0].markingNo || (await nextMarkingNo(quarryId))
     const keepIds = new Set(lines.map((l) => l.id).filter(Boolean) as string[])

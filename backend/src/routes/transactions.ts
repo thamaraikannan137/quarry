@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 
-import { BlockMarking, Party, Quarry, Transaction } from '../db/models/index.js'
+import { BlockMarking, Customer, Quarry, Transaction, Vendor } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
 import { isoDateSchema } from '../lib/isoDate.js'
 
@@ -35,6 +35,14 @@ function resolveAmounts(data: z.infer<typeof voucherSchema>) {
   const credit = data.credit ?? 0
   if (debit <= 0 && credit <= 0) throw new Error('Amount required')
   return { debit, credit }
+}
+
+async function assertPartyId(partyId: string | null | undefined) {
+  if (!partyId) return true
+  const customer = await Customer.findByPk(partyId)
+  if (customer) return true
+  const vendor = await Vendor.findByPk(partyId)
+  return Boolean(vendor)
 }
 
 transactionsRouter.get(
@@ -91,8 +99,7 @@ transactionsRouter.post(
     if (!quarry) return badRequest(res, 'Invalid quarryId')
 
     if (parsed.data.partyId) {
-      const party = await Party.findByPk(parsed.data.partyId)
-      if (!party) return badRequest(res, 'Invalid partyId')
+      if (!(await assertPartyId(parsed.data.partyId))) return badRequest(res, 'Invalid partyId')
     }
 
     if (parsed.data.markingBatchId) {
@@ -156,6 +163,10 @@ transactionsRouter.put(
       } catch (e) {
         return badRequest(res, e instanceof Error ? e.message : 'Invalid amount')
       }
+    }
+
+    if (parsed.data.partyId) {
+      if (!(await assertPartyId(parsed.data.partyId))) return badRequest(res, 'Invalid partyId')
     }
 
     await existing.update({

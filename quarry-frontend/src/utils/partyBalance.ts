@@ -48,7 +48,12 @@ export function vendorPaid(partyId: string, transactions: Transaction[]) {
     .reduce((sum, row) => sum + (Number(row.debit) || 0) - (Number(row.credit) || 0), 0)
 }
 
-/** What we still owe this vendor: opening minus net payments. Negative = advance. */
+/**
+ * What we still owe this vendor.
+ * Expense vouchers (diesel, purchase) are cash bills already paid, so they increase
+ * “Paid” and do not create pending. Pending is only unpaid opening balance.
+ */
 export function vendorBalance(party: Pick<Party, 'id' | 'openingBalance'>, transactions: Transaction[]) {
-  return Math.round((party.openingBalance - vendorPaid(party.id, transactions)) * 100) / 100
+  const unpaid = (Number(party.openingBalance) || 0) - vendorPaid(party.id, transactions)
+  return Math.round(Math.max(0, unpaid) * 100) / 100
 }

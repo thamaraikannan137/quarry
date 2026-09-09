@@ -4,7 +4,7 @@ import { dateonlyAttribute } from '../../lib/isoDate.js'
 import { newId } from '../../lib/marking.js'
 import { sequelize } from '../sequelize.js'
 import type { DispatchTripBlock } from './DispatchTripBlock.js'
-import type { Party } from './Party.js'
+import type { Customer } from './Customer.js'
 
 export interface BlockMarkingAttributes {
   id: string
@@ -58,7 +58,7 @@ export class BlockMarking
   declare updatedAt: Date
 
   declare loads?: DispatchTripBlock[]
-  declare party?: Party
+  declare party?: Customer
 }
 
 BlockMarking.init(

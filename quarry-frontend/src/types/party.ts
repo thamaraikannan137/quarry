@@ -1,4 +1,4 @@
-export type PartyKind = 'Customer' | 'Vendor' | 'Both'
+export type PartyKind = 'Customer' | 'Vendor'
 
 export type GstType = 'Unregistered/Consumer' | 'Registered Regular' | 'Composition'
 
@@ -34,11 +34,11 @@ export const TN_STATES = [
 ] as const
 
 export function isCustomerParty(party: Pick<Party, 'type'>) {
-  return party.type === 'Customer' || party.type === 'Both'
+  return party.type === 'Customer'
 }
 
 export function isVendorParty(party: Pick<Party, 'type'>) {
-  return party.type === 'Vendor' || party.type === 'Both'
+  return party.type === 'Vendor'
 }
 
 export function emptyPartyDraft(quarryId: string): PartyDraft {

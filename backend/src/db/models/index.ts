@@ -1,21 +1,25 @@
 import { AttendanceMark } from './AttendanceMark.js'
 import { BlockMarking } from './BlockMarking.js'
+import { Customer } from './Customer.js'
 import { DispatchTrip } from './DispatchTrip.js'
 import { DispatchTripBlock } from './DispatchTripBlock.js'
-import { Party } from './Party.js'
 import { Quarry } from './Quarry.js'
 import { Staff } from './Staff.js'
 import { Transaction } from './Transaction.js'
 import { User } from './User.js'
+import { Vendor } from './Vendor.js'
 
-Quarry.hasMany(Party, { foreignKey: 'quarryId' })
-Party.belongsTo(Quarry, { foreignKey: 'quarryId' })
+Quarry.hasMany(Customer, { foreignKey: 'quarryId' })
+Customer.belongsTo(Quarry, { foreignKey: 'quarryId' })
+
+Quarry.hasMany(Vendor, { foreignKey: 'quarryId' })
+Vendor.belongsTo(Quarry, { foreignKey: 'quarryId' })
 
 Quarry.hasMany(BlockMarking, { foreignKey: 'quarryId' })
 BlockMarking.belongsTo(Quarry, { foreignKey: 'quarryId' })
 
-Party.hasMany(BlockMarking, { foreignKey: 'partyId' })
-BlockMarking.belongsTo(Party, { foreignKey: 'partyId', as: 'party' })
+Customer.hasMany(BlockMarking, { foreignKey: 'partyId' })
+BlockMarking.belongsTo(Customer, { foreignKey: 'partyId', as: 'party' })
 
 Quarry.hasMany(DispatchTrip, { foreignKey: 'quarryId' })
 DispatchTrip.belongsTo(Quarry, { foreignKey: 'quarryId' })
@@ -33,9 +37,6 @@ DispatchTripBlock.belongsTo(BlockMarking, { foreignKey: 'blockId', as: 'block' }
 Quarry.hasMany(Transaction, { foreignKey: 'quarryId' })
 Transaction.belongsTo(Quarry, { foreignKey: 'quarryId' })
 
-Party.hasMany(Transaction, { foreignKey: 'partyId' })
-Transaction.belongsTo(Party, { foreignKey: 'partyId' })
-
 Quarry.hasMany(Staff, { foreignKey: 'quarryId' })
 Staff.belongsTo(Quarry, { foreignKey: 'quarryId' })
 
@@ -45,4 +46,15 @@ Quarry.hasMany(AttendanceMark, { foreignKey: 'quarryId' })
 AttendanceMark.belongsTo(Quarry, { foreignKey: 'quarryId' })
 
 export { sequelize } from '../sequelize.js'
-export { AttendanceMark, BlockMarking, DispatchTrip, DispatchTripBlock, Party, Quarry, Staff, Transaction, User }
+export {
+  AttendanceMark,
+  BlockMarking,
+  Customer,
+  DispatchTrip,
+  DispatchTripBlock,
+  Quarry,
+  Staff,
+  Transaction,
+  User,
+  Vendor,
+}

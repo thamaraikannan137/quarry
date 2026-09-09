@@ -3,10 +3,12 @@ import { DEFAULT_QUARRIES, ensureDefaultQuarries } from './data/defaultQuarries.
 import { DEFAULT_STAFF, ensureDefaultStaff } from './data/defaultStaff.js'
 import { DEFAULT_USERS, ensureDefaultUsers } from './data/defaultUsers.js'
 import { ensureDateColumns } from './lib/ensureDateColumns.js'
+import { ensureSplitParties } from './lib/ensureSplitParties.js'
 
 async function main() {
   await sequelize.authenticate()
   await sequelize.sync()
+  await ensureSplitParties()
   await ensureDateColumns()
   await ensureDefaultQuarries()
   await ensureDefaultStaff()

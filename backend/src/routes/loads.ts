@@ -6,7 +6,7 @@ import {
   BlockMarking,
   DispatchTrip,
   DispatchTripBlock,
-  Party,
+  Customer,
   Quarry,
   sequelize,
 } from '../db/models/index.js'
@@ -42,7 +42,7 @@ async function serializeTrip(tripId: string) {
           {
             model: BlockMarking,
             as: 'block',
-            include: [{ model: Party, as: 'party', attributes: ['id', 'name'] }],
+            include: [{ model: Customer, as: 'party', attributes: ['id', 'name'] }],
           },
         ],
       },

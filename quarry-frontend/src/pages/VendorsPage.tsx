@@ -104,11 +104,14 @@ export function VendorsPage() {
       align: 'right',
       width: 120,
       sorter: (a, b) => a.balance - b.balance,
-      render: (value: number) => (
-        <Typography.Text type={value > 0 ? 'danger' : undefined} style={value < 0 ? { color: '#389e0d' } : undefined} strong>
-          {money(value)}
-        </Typography.Text>
-      ),
+      render: (value: number) =>
+        value > 0 ? (
+          <Typography.Text type="danger" strong>
+            {money(value)}
+          </Typography.Text>
+        ) : (
+          '—'
+        ),
     },
   ]
 

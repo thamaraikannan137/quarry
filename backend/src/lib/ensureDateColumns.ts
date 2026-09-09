@@ -103,5 +103,5 @@ export async function ensureDateColumns() {
   await migrateRequiredDate('BlockMarking', 'date')
   await migrateRequiredDate('AttendanceMark', 'date')
   await migrateRequiredDate('DispatchTrip', 'date')
-  await migrateOptionalDate('Party', 'asOf')
+  await migrateOptionalDate('Customer', 'asOf')
 }

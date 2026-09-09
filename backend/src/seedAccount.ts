@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { Op } from 'sequelize'
 
-import { BlockMarking, Party, Staff, Transaction, sequelize } from './db/models/index.js'
+import { BlockMarking, Customer, Staff, Transaction, Vendor, sequelize } from './db/models/index.js'
 
 const QUARRY_ID = 'q_chitha'
 const LABOUR_PULLU = 'g_pullu'
@@ -138,18 +138,24 @@ function matchStaff(particulars: string, staff: StaffRow[], bladeSalaryIndex: { 
 }
 
 async function ensureParty(name: string, type: 'Customer' | 'Vendor') {
-  const existing = await Party.findAll({ where: { quarryId: QUARRY_ID } })
+  if (type === 'Vendor') {
+    const existing = await Vendor.findAll({ where: { quarryId: QUARRY_ID } })
+    const needle = normalizeName(name)
+    const found = existing.find((row) => {
+      const current = normalizeName(row.name)
+      return current === needle || current.includes(needle) || needle.includes(current)
+    })
+    if (found) return found
+    return Vendor.create({ name, quarryId: QUARRY_ID })
+  }
+  const existing = await Customer.findAll({ where: { quarryId: QUARRY_ID } })
   const needle = normalizeName(name)
   const found = existing.find((row) => {
     const current = normalizeName(row.name)
     return current === needle || current.includes(needle) || needle.includes(current)
   })
   if (found) return found
-  return Party.create({
-    name,
-    type,
-    quarryId: QUARRY_ID,
-  })
+  return Customer.create({ name, quarryId: QUARRY_ID })
 }
 
 async function ensureStaff() {

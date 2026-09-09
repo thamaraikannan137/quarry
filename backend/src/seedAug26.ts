@@ -1,6 +1,6 @@
 import { Op } from 'sequelize'
 
-import { BlockMarking, Party, Quarry, sequelize } from './db/models/index.js'
+import { BlockMarking, Customer, Quarry, sequelize } from './db/models/index.js'
 import { newId } from './lib/marking.js'
 import { ensureMarkingNumbers, nextMarkingNo } from './lib/markingNo.js'
 
@@ -62,7 +62,7 @@ const BATCHES: Batch[] = [
 ]
 
 async function ensureParty(name: string) {
-  const existing = await Party.findOne({
+  const existing = await Customer.findOne({
     where: {
       quarryId: QUARRY_ID,
       name: { [Op.iLike]: name },
@@ -72,9 +72,8 @@ async function ensureParty(name: string) {
     if (existing.name !== name) await existing.update({ name })
     return existing
   }
-  return Party.create({
+  return Customer.create({
     name,
-    type: 'Customer',
     quarryId: QUARRY_ID,
   })
 }

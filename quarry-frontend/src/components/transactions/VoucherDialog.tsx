@@ -637,8 +637,7 @@ export function VoucherDialog({
         zIndex={1200}
         onClose={() => setVendorFormOpen(false)}
         onSave={async (draft) => {
-          const type = draft.type === 'Customer' ? 'Vendor' : draft.type
-          const party = await addParty({ ...draft, type })
+          const party = await addParty({ ...draft, type: 'Vendor' })
           form.setFieldValue('partyId', party.id)
           message.success(`Vendor “${party.name}” added`)
         }}

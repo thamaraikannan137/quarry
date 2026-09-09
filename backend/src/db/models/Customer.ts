@@ -4,10 +4,9 @@ import { dateonlyAttribute } from '../../lib/isoDate.js'
 import { newId } from '../../lib/marking.js'
 import { sequelize } from '../sequelize.js'
 
-export interface PartyAttributes {
+export interface CustomerAttributes {
   id: string
   name: string
-  type: string
   phone: string
   email: string
   gstin: string
@@ -25,10 +24,9 @@ export interface PartyAttributes {
   updatedAt: Date
 }
 
-type PartyCreation = Optional<
-  PartyAttributes,
+type CustomerCreation = Optional<
+  CustomerAttributes,
   | 'id'
-  | 'type'
   | 'phone'
   | 'email'
   | 'gstin'
@@ -45,10 +43,9 @@ type PartyCreation = Optional<
   | 'updatedAt'
 >
 
-export class Party extends Model<PartyAttributes, PartyCreation> implements PartyAttributes {
+export class Customer extends Model<CustomerAttributes, CustomerCreation> implements CustomerAttributes {
   declare id: string
   declare name: string
-  declare type: string
   declare phone: string
   declare email: string
   declare gstin: string
@@ -66,11 +63,10 @@ export class Party extends Model<PartyAttributes, PartyCreation> implements Part
   declare updatedAt: Date
 }
 
-Party.init(
+Customer.init(
   {
     id: { type: DataTypes.STRING, primaryKey: true },
     name: { type: DataTypes.STRING, allowNull: false },
-    type: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Customer' },
     phone: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
     email: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
     gstin: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
@@ -89,11 +85,11 @@ Party.init(
   },
   {
     sequelize,
-    tableName: 'Party',
-    indexes: [{ fields: ['quarryId'] }, { fields: ['type'] }, { fields: ['name'] }],
+    tableName: 'Customer',
+    indexes: [{ fields: ['quarryId'] }, { fields: ['name'] }],
   },
 )
 
-Party.beforeCreate((row) => {
-  if (!row.id) row.id = newId('pt')
+Customer.beforeCreate((row) => {
+  if (!row.id) row.id = newId('cu')
 })

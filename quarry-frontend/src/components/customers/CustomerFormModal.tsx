@@ -4,8 +4,19 @@ import { useEffect, useState } from 'react'
 
 import { errorMessage, isFormValidationError } from '@/api/http'
 import { NumberInput } from '@/components/common'
+import { useParties } from '@/contexts/PartiesContext'
 
 import { TN_STATES, emptyPartyDraft, type GstType, type Party, type PartyDraft, type PartyKind } from '@/types/party'
+
+function partyTypesOverlap(a: PartyKind, b: PartyKind) {
+  return a === b
+}
+
+function partyKindLabel(kind: PartyKind) {
+  if (kind === 'Vendor') return 'Vendor'
+  if (kind === 'Customer') return 'Customer'
+  return 'Party'
+}
 
 type TabKey = 'gst' | 'credit' | 'more'
 
@@ -61,10 +72,30 @@ export function CustomerFormModal({
   onClose,
   onSave,
 }: CustomerFormModalProps) {
+  const { partiesForQuarry } = useParties()
   const [form] = Form.useForm<FormValues>()
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<TabKey>('gst')
   const isEdit = Boolean(initial)
+  const nameRules = [
+    { required: true, message: 'Name is required' },
+    {
+      validator: async (_: unknown, value: string) => {
+        const name = value?.trim() ?? ''
+        if (!name) return
+        const thisType: PartyKind =
+          defaultType === 'Vendor' ? 'Vendor' : form.getFieldValue('type') || defaultType
+        const clash = partiesForQuarry(quarryId).find(
+          (party) =>
+            party.id !== initial?.id &&
+            party.name.trim().toLowerCase() === name.toLowerCase() &&
+            partyTypesOverlap(thisType, party.type),
+        )
+        if (!clash) return
+        throw new Error(`${partyKindLabel(thisType)} "${clash.name}" already exists in this quarry`)
+      },
+    },
+  ]
 
   useEffect(() => {
     if (!open) return
@@ -105,7 +136,7 @@ export function CustomerFormModal({
       const isVendor = defaultType === 'Vendor'
       await onSave({
         id: initial?.id,
-        name: values.name,
+        name: values.name.trim(),
         phone: values.phone || '',
         gstin: isVendor ? initial?.gstin || '—' : values.gstin || '—',
         gstType: isVendor ? initial?.gstType || blank.gstType : values.gstType || blank.gstType,
@@ -116,7 +147,7 @@ export function CustomerFormModal({
         openingBalance: isVendor ? initial?.openingBalance || 0 : values.openingBalance || 0,
         asOf: isVendor ? initial?.asOf || blank.asOf : asOfIso(values.asOf, blank.asOf),
         creditLimit: isVendor ? initial?.creditLimit || 0 : values.creditLimit || 0,
-        type: isVendor ? 'Vendor' : values.type || defaultType,
+        type: isVendor ? 'Vendor' : 'Customer',
         contact: isVendor ? initial?.contact || '' : values.contact || '',
         notes: isVendor ? initial?.notes || '' : values.notes || '',
         quarryIds: initial?.quarryIds ?? [quarryId],
@@ -155,7 +186,7 @@ export function CustomerFormModal({
             <Form.Item
               name="name"
               label="Vendor name"
-              rules={[{ required: true, message: 'Name is required' }]}
+              rules={nameRules}
             >
               <Input autoFocus placeholder="Enter vendor name" />
             </Form.Item>
@@ -172,7 +203,7 @@ export function CustomerFormModal({
           <Form.Item
             name="name"
             label={defaultType === 'Customer' ? 'Customer name' : 'Party name'}
-            rules={[{ required: true, message: 'Name is required' }]}
+            rules={nameRules}
             style={{ gridColumn: 'span 1' }}
           >
             <Input autoFocus placeholder="Enter party name" />
@@ -237,22 +268,6 @@ export function CustomerFormModal({
                   </Form.Item>
                   <Form.Item name="creditLimit" label="Credit limit">
                     <NumberInput min={0} style={{ width: '100%' }} prefix="₹" />
-                  </Form.Item>
-                  <Form.Item name="type" label="Party type">
-                    <Select
-                      options={
-                        defaultType === 'Customer'
-                          ? [
-                              { value: 'Customer', label: 'Customer' },
-                              { value: 'Both', label: 'Customer & vendor' },
-                            ]
-                          : [
-                              { value: 'Customer', label: 'Customer' },
-                              { value: 'Vendor', label: 'Vendor' },
-                              { value: 'Both', label: 'Customer & vendor' },
-                            ]
-                      }
-                    />
                   </Form.Item>
                 </div>
               ),

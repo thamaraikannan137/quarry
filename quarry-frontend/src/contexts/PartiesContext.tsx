@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { message } from 'antd'
 
 import { createCustomer, deleteCustomer, listCustomers, updateCustomer } from '@/api/customers'
+import { createVendor, deleteVendor, listVendors, updateVendor } from '@/api/vendors'
 import { errorMessage } from '@/api/http'
 import type { Party, PartyDraft, PartyKind } from '@/types/party'
 import { isCustomerParty, isVendorParty } from '@/types/party'
@@ -32,8 +33,8 @@ export function PartiesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const reload = useCallback(async () => {
-    const rows = await listCustomers()
-    setParties(rows)
+    const [customers, vendors] = await Promise.all([listCustomers(), listVendors()])
+    setParties([...customers, ...vendors])
   }, [])
 
   useEffect(() => {
@@ -63,20 +64,22 @@ export function PartiesProvider({ children }: { children: ReactNode }) {
   const getParty = useCallback((id?: string | null) => parties.find((party) => party.id === id), [parties])
 
   const addParty = useCallback(async (draft: PartyDraft) => {
-    const next = await createCustomer(draft)
+    const next = draft.type === 'Vendor' ? await createVendor(draft) : await createCustomer(draft)
     setParties((current) => [next, ...current.filter((party) => party.id !== next.id)])
     return next
   }, [])
 
   const updateParty = useCallback(async (id: string, draft: PartyDraft) => {
-    const next = await updateCustomer(id, draft)
+    const next = draft.type === 'Vendor' ? await updateVendor(id, draft) : await updateCustomer(id, draft)
     setParties((current) => current.map((party) => (party.id === id ? next : party)))
   }, [])
 
   const deleteParty = useCallback(async (id: string) => {
-    await deleteCustomer(id)
+    const existing = parties.find((party) => party.id === id)
+    if (existing?.type === 'Vendor') await deleteVendor(id)
+    else await deleteCustomer(id)
     setParties((current) => current.filter((party) => party.id !== id))
-  }, [])
+  }, [parties])
 
   const value = useMemo(
     () => ({
