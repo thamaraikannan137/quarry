@@ -19,6 +19,7 @@ function fromApi(row: Transaction & { createdAt?: string }): Transaction {
     refNote: row.refNote ?? null,
     markingBatchId: row.markingBatchId ?? null,
     paymentMethod: row.paymentMethod ?? null,
+    loanId: row.loanId ?? null,
     createdAt: row.createdAt ?? '',
   }
 }

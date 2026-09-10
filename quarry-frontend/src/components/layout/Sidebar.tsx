@@ -76,7 +76,9 @@ export function Sidebar({ inDrawer = false }: SidebarProps) {
                   ? '/vendors'
                   : location.pathname.startsWith('/staff')
                     ? '/staff'
-                    : location.pathname,
+                    : location.pathname.startsWith('/finance')
+                      ? '/finance'
+                      : location.pathname,
         ]}
         inlineCollapsed={collapsed}
         items={items}

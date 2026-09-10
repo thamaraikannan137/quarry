@@ -8,7 +8,7 @@ import {
   listTransactions,
   updateTransactionApi,
 } from '@/api/transactions'
-import { EXPENSE_HEADS, isMachineryRentHead } from '@/data/expenseHeads'
+import { EXPENSE_HEADS, isFinanceHead, isMachineryRentHead } from '@/data/expenseHeads'
 import type { Transaction, TxnType, VoucherDraft } from '@/types/transaction'
 
 const HEADS_KEY = 'quarry-heads-v1'
@@ -32,6 +32,8 @@ type TransactionsContextValue = {
   addHead: (name: string) => string | null
   addMachineryName: (name: string) => string | null
   deleteTransaction: (id: string) => Promise<void>
+  ingestTransaction: (row: Transaction) => void
+  dropTransaction: (id: string) => void
 }
 
 const TransactionsContext = createContext<TransactionsContextValue | null>(null)
@@ -63,7 +65,9 @@ function readHeads(transactions: Transaction[]): string[] {
 }
 
 function machineryFromTransactions(transactions: Transaction[]) {
-  return transactions.filter((row) => isMachineryRentHead(row.head)).map((row) => row.refNote ?? '')
+  return transactions
+    .filter((row) => isMachineryRentHead(row.head) || isFinanceHead(row.head))
+    .map((row) => row.refNote ?? '')
 }
 
 function readMachineryNames(transactions: Transaction[]): string[] {
@@ -122,20 +126,28 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   const addVoucher = useCallback(async (quarryId: string, type: TxnType, draft: VoucherDraft) => {
     const head = addHead(draft.head) ?? draft.head
-    if (isMachineryRentHead(head) && draft.refNote) addMachineryName(draft.refNote)
+    if ((isMachineryRentHead(head) || isFinanceHead(head)) && draft.refNote) addMachineryName(draft.refNote)
     const next = await createTransaction(quarryId, type, { ...draft, head })
     setTransactions((current) => [next, ...current.filter((row) => row.id !== next.id)])
   }, [addHead, addMachineryName])
 
   const updateTransaction = useCallback(async (id: string, type: TxnType, draft: VoucherDraft) => {
     const head = addHead(draft.head) ?? draft.head
-    if (isMachineryRentHead(head) && draft.refNote) addMachineryName(draft.refNote)
+    if ((isMachineryRentHead(head) || isFinanceHead(head)) && draft.refNote) addMachineryName(draft.refNote)
     const next = await updateTransactionApi(id, type, { ...draft, head })
     setTransactions((current) => current.map((row) => (row.id === id ? next : row)))
   }, [addHead, addMachineryName])
 
   const deleteTransaction = useCallback(async (id: string) => {
     await deleteTransactionApi(id)
+    setTransactions((current) => current.filter((row) => row.id !== id))
+  }, [])
+
+  const ingestTransaction = useCallback((row: Transaction) => {
+    setTransactions((current) => [row, ...current.filter((item) => item.id !== row.id)])
+  }, [])
+
+  const dropTransaction = useCallback((id: string) => {
     setTransactions((current) => current.filter((row) => row.id !== id))
   }, [])
 
@@ -150,8 +162,10 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       addHead,
       addMachineryName,
       deleteTransaction,
+      ingestTransaction,
+      dropTransaction,
     }),
-    [transactions, loading, heads, machineryNames, addVoucher, updateTransaction, addHead, addMachineryName, deleteTransaction],
+    [transactions, loading, heads, machineryNames, addVoucher, updateTransaction, addHead, addMachineryName, deleteTransaction, ingestTransaction, dropTransaction],
   )
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>

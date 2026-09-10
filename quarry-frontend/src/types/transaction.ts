@@ -11,6 +11,8 @@ export type TransactionMeta = {
   markingBatchId?: string | null
   /** How the receipt was paid — Cash, GPay, etc. */
   paymentMethod?: string | null
+  /** Linked EMI loan (Finance / Loan due board). */
+  loanId?: string | null
 }
 
 export type Transaction = {

@@ -175,6 +175,25 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
       },
     ],
   },
+  {
+    heads: ['Finance / EMI', 'Finance / Loan', 'Finance', 'EMI'],
+    types: ['Debit', 'Credit'],
+    fields: [
+      {
+        key: 'refNote',
+        label: 'Vehicle / asset',
+        required: true,
+        hint: 'Machine, vehicle or other asset this EMI is for',
+      },
+      {
+        key: 'party',
+        label: 'Financier',
+        required: false,
+        hint: 'Bank / finance company',
+        partySource: 'vendor',
+      },
+    ],
+  },
 ]
 
 export function fieldsForCategory(head: string, type: TxnType): ExtraFieldDef[] {

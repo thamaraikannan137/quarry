@@ -23,6 +23,7 @@ function extraNoteLabel(head: string) {
   const key = head.trim().toLowerCase()
   if (key === 'monthly gift') return 'Name'
   if (key === 'machinery rent') return 'Machinery name'
+  if (key === 'finance / emi' || key === 'finance / loan' || key === 'finance' || key === 'emi') return 'Machine'
   return 'Reference'
 }
 

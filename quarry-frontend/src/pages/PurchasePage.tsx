@@ -9,7 +9,7 @@ import { VoucherDialog } from '@/components/transactions/VoucherDialog'
 import { useAuth } from '@/contexts/AuthContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
-import { PURCHASE_EXPENSE_HEADS, isMachineryRentHead, isMonthlyGiftHead, isPurchaseExpenseHead, isRoyaltyHead } from '@/data/expenseHeads'
+import { PURCHASE_EXPENSE_HEADS, isFinanceHead, isMachineryRentHead, isMonthlyGiftHead, isPurchaseExpenseHead, isRoyaltyHead } from '@/data/expenseHeads'
 import type { Transaction } from '@/types/transaction'
 import { formatDate, money, monthKey, monthLabel, compareByDateThenTime } from '@/utils/money'
 
@@ -285,7 +285,9 @@ export function PurchasePage() {
                 ? 'Royalty'
                 : isMachineryRentHead(draft.head)
                   ? 'Machinery Rent'
-                  : null
+                  : isFinanceHead(draft.head)
+                    ? 'Finance / Loan'
+                    : null
             if (editing) {
               await updateTransaction(editing.id, 'Debit', draft)
               message.success(toSection ? `${toSection} updated` : 'Expense updated')

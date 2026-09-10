@@ -20,6 +20,7 @@ export interface TransactionAttributes {
   refNote: string | null
   markingBatchId: string | null
   paymentMethod: string | null
+  loanId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -37,6 +38,7 @@ type TransactionCreation = Optional<
   | 'refNote'
   | 'markingBatchId'
   | 'paymentMethod'
+  | 'loanId'
   | 'createdAt'
   | 'updatedAt'
 >
@@ -60,6 +62,7 @@ export class Transaction
   declare refNote: string | null
   declare markingBatchId: string | null
   declare paymentMethod: string | null
+  declare loanId: string | null
   declare createdAt: Date
   declare updatedAt: Date
 }
@@ -81,6 +84,7 @@ Transaction.init(
     refNote: { type: DataTypes.STRING, allowNull: true },
     markingBatchId: { type: DataTypes.STRING, allowNull: true },
     paymentMethod: { type: DataTypes.STRING, allowNull: true },
+    loanId: { type: DataTypes.STRING, allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },
@@ -93,6 +97,7 @@ Transaction.init(
       { fields: ['markingBatchId'] },
       { fields: ['date'] },
       { fields: ['head'] },
+      { fields: ['loanId'] },
       { name: 'idx_transaction_quarry_date', fields: ['quarryId', 'date'] },
     ],
   },

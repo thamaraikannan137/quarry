@@ -15,6 +15,8 @@ import { Login } from '@/pages/Login'
 import { MarkingDetailPage } from '@/pages/MarkingDetailPage'
 import { MarkingPage } from '@/pages/MarkingPage'
 import { GiftPage } from '@/pages/GiftPage'
+import { FinancePage } from '@/pages/FinancePage'
+import { LoanDetailPage } from '@/pages/LoanDetailPage'
 import { MachineryPage } from '@/pages/MachineryPage'
 import { MastersPage } from '@/pages/MastersPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
@@ -38,6 +40,7 @@ const READY_PATHS = new Set([
   '/marking',
   '/loads',
   '/purchase',
+  '/finance',
   '/vendors',
   '/gift',
   '/royalty',
@@ -72,6 +75,8 @@ export default function App() {
           <Route path="/loads/:tripId/edit" element={<EditLoadPage />} />
           <Route path="/loads/:tripId" element={<LoadDetailPage />} />
           <Route path="/purchase" element={<PurchasePage />} />
+          <Route path="/finance" element={<FinancePage />} />
+          <Route path="/finance/:loanId" element={<LoanDetailPage />} />
           <Route path="/gift" element={<GiftPage />} />
           <Route path="/royalty" element={<RoyaltyPage />} />
           <Route path="/machinery" element={<MachineryPage />} />

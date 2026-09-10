@@ -15,8 +15,9 @@ async function missingTable(name: string) {
 export async function ensureSchema() {
   const missingCore = await missingTable('AttendanceMark')
   const missingSplit = (await missingTable('Customer')) || (await missingTable('Vendor'))
-  const shouldSync = process.env.DB_SYNC === '1' || isLocalDatabase() || missingCore || missingSplit
+  const missingLoan = await missingTable('Loan')
+  const shouldSync = process.env.DB_SYNC === '1' || isLocalDatabase() || missingCore || missingSplit || missingLoan
   if (!shouldSync) return
   await sequelize.sync()
-  if (missingCore || missingSplit) logger.info('Created missing database tables')
+  if (missingCore || missingSplit || missingLoan) logger.info('Created missing database tables')
 }

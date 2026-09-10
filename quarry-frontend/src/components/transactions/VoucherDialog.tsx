@@ -14,7 +14,7 @@ import { useParties } from '@/contexts/PartiesContext'
 import { useStaff } from '@/contexts/StaffContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
 import { fieldsForCategory } from '@/data/categoryFields'
-import { isMachineryRentHead } from '@/data/expenseHeads'
+import { isFinanceHead, isMachineryRentHead } from '@/data/expenseHeads'
 import { gangsForQuarry } from '@/data/demoLinks'
 import type { Transaction, TxnType, VoucherDraft } from '@/types/transaction'
 import { batchBalance } from '@/utils/markingPayment'
@@ -453,18 +453,18 @@ export function VoucherDialog({
                   : undefined
               }
             >
-              {isMachineryRentHead(headValue) ? (
+              {isMachineryRentHead(headValue) || isFinanceHead(headValue) ? (
                 <CategorySelect
                   options={machineryNames}
                   allowCreate
                   allowClear={!refField?.required}
-                  placeholder="Select machinery"
-                  createTitle="Add machinery"
-                  createFieldLabel="Machinery name"
+                  placeholder="Select machine"
+                  createTitle="Add machine"
+                  createFieldLabel="Machine name"
                   createPlaceholder="e.g. HM Crane, Hitachi 370"
-                  createButtonLabel="Add machinery"
-                  notFoundContent="No machinery yet"
-                  createdNoun="Machinery"
+                  createButtonLabel="Add machine"
+                  notFoundContent="No machines yet"
+                  createdNoun="Machine"
                   onCreate={addMachineryName}
                 />
               ) : (

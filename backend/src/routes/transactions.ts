@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 
-import { BlockMarking, Customer, Quarry, Transaction, Vendor } from '../db/models/index.js'
+import { BlockMarking, Customer, LoanPayment, Quarry, Transaction, Vendor } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
 import { isoDateSchema } from '../lib/isoDate.js'
 
@@ -194,6 +194,7 @@ transactionsRouter.delete(
   asyncHandler(async (req, res) => {
     const existing = await Transaction.findByPk(routeParam(req, 'id'))
     if (!existing) return notFound(res, 'Transaction not found')
+    await LoanPayment.destroy({ where: { transactionId: existing.id } })
     await existing.destroy()
     res.status(204).send()
   }),
