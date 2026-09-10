@@ -1,4 +1,4 @@
-import { Form, Input, Modal, Select, message } from 'antd'
+import { Form, Input, Modal, Select, Typography, message } from 'antd'
 import { useEffect, useState } from 'react'
 
 import { errorMessage } from '@/api/http'
@@ -7,6 +7,8 @@ import { emptyLoanDraft, type Loan, type LoanDraft } from '@/types/loan'
 
 type LoanFormModalProps = {
   open: boolean
+  quarryId: string
+  quarryName?: string
   initial?: Loan | null
   onClose: () => void
   onSave: (draft: LoanDraft) => void | Promise<void>
@@ -23,7 +25,14 @@ type FormValues = {
   active: boolean
 }
 
-export function LoanFormModal({ open, initial = null, onClose, onSave }: LoanFormModalProps) {
+export function LoanFormModal({
+  open,
+  quarryId,
+  quarryName,
+  initial = null,
+  onClose,
+  onSave,
+}: LoanFormModalProps) {
   const [form] = Form.useForm<FormValues>()
   const [saving, setSaving] = useState(false)
   const isEdit = Boolean(initial)
@@ -43,18 +52,19 @@ export function LoanFormModal({ open, initial = null, onClose, onSave }: LoanFor
       })
       return
     }
-    const blank = emptyLoanDraft()
+    const blank = emptyLoanDraft(quarryId)
     form.setFieldsValue({
       ...blank,
       emiAmount: undefined,
     })
-  }, [open, initial, form])
+  }, [open, initial, form, quarryId])
 
   const handleOk = async () => {
     try {
       setSaving(true)
       const values = await form.validateFields()
       await onSave({
+        quarryId: initial?.quarryId || quarryId,
         vehicleNo: values.vehicleNo.trim(),
         borrower: values.borrower?.trim() || '',
         loanNo: values.loanNo?.trim() || '',
@@ -76,7 +86,16 @@ export function LoanFormModal({ open, initial = null, onClose, onSave }: LoanFor
   return (
     <Modal
       open={open}
-      title={isEdit ? 'Edit loan' : 'Add loan'}
+      title={
+        <div>
+          <div style={{ fontWeight: 600 }}>{isEdit ? 'Edit loan' : 'Add loan'}</div>
+          {quarryName ? (
+            <Typography.Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
+              Site: {quarryName}
+            </Typography.Text>
+          ) : null}
+        </div>
+      }
       onCancel={onClose}
       onOk={handleOk}
       confirmLoading={saving}

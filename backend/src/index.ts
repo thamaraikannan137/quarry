@@ -12,7 +12,8 @@ import { ensureDateColumns } from './lib/ensureDateColumns.js'
 import { ensureGstSettings } from './lib/ensureGstSettings.js'
 import { ensureMarkingNumbers } from './lib/markingNo.js'
 import { ensureSchema } from './lib/ensureSchema.js'
-import { ensureLoans } from './lib/ensureLoans.js'
+import { ensureLedgers } from './lib/ensureLedgers.js'
+import { ensureLoans, ensureLoanQuarryScope } from './lib/ensureLoans.js'
 import { ensureSplitParties } from './lib/ensureSplitParties.js'
 import { logger, requestLogger } from './lib/logger.js'
 import { attendanceRouter } from './routes/attendance.js'
@@ -21,6 +22,7 @@ import { customersRouter } from './routes/customers.js'
 import { vendorsRouter } from './routes/vendors.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { loadsRouter } from './routes/loads.js'
+import { ledgersRouter } from './routes/ledgers.js'
 import { markingsRouter } from './routes/markings.js'
 import { quarriesRouter } from './routes/quarries.js'
 import { salaryRouter } from './routes/salary.js'
@@ -56,6 +58,7 @@ app.get('/api', (_req, res) => {
       'GET /api/salary',
       'GET|POST|PUT|DELETE /api/transactions',
       'GET|POST|PUT|DELETE /api/loans',
+      'GET|POST|PUT|DELETE /api/ledgers',
       'POST /api/auth/login',
       'GET|POST|PUT|DELETE /api/users',
     ],
@@ -73,6 +76,7 @@ app.use('/api/attendance', attendanceRouter)
 app.use('/api/salary', salaryRouter)
 app.use('/api/transactions', transactionsRouter)
 app.use('/api/loans', loansRouter)
+app.use('/api/ledgers', ledgersRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 
@@ -84,8 +88,9 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
 
 async function main() {
   await sequelize.authenticate()
-  await ensureSchema()
   await ensureLoans()
+  await ensureLedgers()
+  await ensureSchema()
   await ensureSplitParties()
   await AttendanceMark.update({ status: 'HalfDay' }, { where: { status: 'Holiday' } })
   await ensureMarkingNumbers()
@@ -93,6 +98,7 @@ async function main() {
   await ensureGstSettings()
   await ensureDashboardIndexes()
   await ensureDefaultQuarries()
+  await ensureLoanQuarryScope()
   await ensureDefaultStaff()
   await ensureDefaultUsers()
   await ensureDefaultLoans()

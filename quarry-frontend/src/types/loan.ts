@@ -10,6 +10,7 @@ export type LoanPayment = {
 
 export type Loan = {
   id: string
+  quarryId: string
   vehicleNo: string
   borrower: string
   loanNo: string
@@ -22,6 +23,7 @@ export type Loan = {
 }
 
 export type LoanDraft = {
+  quarryId: string
   vehicleNo: string
   borrower: string
   loanNo: string
@@ -38,8 +40,9 @@ export type LoanPayDraft = {
   amount: number
 }
 
-export function emptyLoanDraft(): LoanDraft {
+export function emptyLoanDraft(quarryId: string): LoanDraft {
   return {
+    quarryId,
     vehicleNo: '',
     borrower: '',
     loanNo: '',

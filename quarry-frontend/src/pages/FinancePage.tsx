@@ -24,7 +24,7 @@ type BoardRow = Loan & { status: LoanStatus }
 export function FinancePage() {
   const navigate = useNavigate()
   const { user, activeQuarry } = useAuth()
-  const { loans, addLoan, updateLoanRecord, markPaid, undoPaid } = useLoans()
+  const { loansForQuarry, addLoan, updateLoanRecord, markPaid, undoPaid } = useLoans()
   const { ingestTransaction, dropTransaction } = useTransactions()
   const canEdit = user?.role !== 'Viewer'
 
@@ -36,7 +36,11 @@ export function FinancePage() {
   const [paying, setPaying] = useState<Loan | null>(null)
 
   const months = useMemo(() => recentMonthKeys(18), [])
-  const activeLoans = useMemo(() => loans.filter((row) => row.active), [loans])
+  const quarryLoans = useMemo(
+    () => (activeQuarry ? loansForQuarry(activeQuarry.id) : []),
+    [activeQuarry, loansForQuarry],
+  )
+  const activeLoans = useMemo(() => quarryLoans.filter((row) => row.active), [quarryLoans])
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -211,7 +215,7 @@ export function FinancePage() {
       <div className="page-head">
         <div>
           <h1>Finance / Loan</h1>
-          <p>Vehicle, machine and loan EMI due board. Mark paid posts Finance / EMI for {activeQuarry.name}.</p>
+          <p>EMI due board for {activeQuarry.name} only.</p>
         </div>
         {canEdit && (
           <Button
@@ -301,7 +305,7 @@ export function FinancePage() {
           resetKey={resetKey}
           scrollX={1180}
           emptyFilterHint={hasActiveFilters ? 'try Clear filters' : undefined}
-          emptyText={activeLoans.length === 0 ? 'No loans yet — add a vehicle, machine or loan.' : 'No loans for this filter'}
+          emptyText={activeLoans.length === 0 ? `No loans for ${activeQuarry.name} yet — add a vehicle, machine or loan.` : 'No loans for this filter'}
           onRow={(record) => ({
             onClick: () => navigate(`/finance/${record.id}`),
             style: { cursor: 'pointer' },
@@ -315,6 +319,8 @@ export function FinancePage() {
 
       <LoanFormModal
         open={formOpen}
+        quarryId={activeQuarry.id}
+        quarryName={activeQuarry.name}
         initial={editing}
         onClose={() => {
           setFormOpen(false)

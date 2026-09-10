@@ -3,6 +3,7 @@ import { message } from 'antd'
 
 import { createLoan, deleteLoan, listLoans, markLoanPaid, undoLoanPaid, updateLoan } from '@/api/loans'
 import { errorMessage } from '@/api/http'
+import { useAuth } from '@/contexts/AuthContext'
 import type { Loan, LoanDraft, LoanPayDraft } from '@/types/loan'
 import type { Transaction } from '@/types/transaction'
 import { isoDateOnly } from '@/utils/money'
@@ -10,6 +11,7 @@ import { isoDateOnly } from '@/utils/money'
 type LoansContextValue = {
   loans: Loan[]
   loading: boolean
+  loansForQuarry: (quarryId: string, activeOnly?: boolean) => Loan[]
   getLoan: (id?: string | null) => Loan | undefined
   addLoan: (draft: LoanDraft) => Promise<Loan>
   updateLoanRecord: (id: string, draft: LoanDraft) => Promise<void>
@@ -32,21 +34,42 @@ function mapTxn(row: Transaction): Transaction {
 }
 
 export function LoansProvider({ children }: { children: ReactNode }) {
+  const { activeQuarry } = useAuth()
   const [loans, setLoans] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
 
-  const reload = useCallback(async () => {
-    const rows = await listLoans()
+  const reload = useCallback(async (quarryId?: string) => {
+    const rows = await listLoans(quarryId)
     setLoans(rows)
   }, [])
 
   useEffect(() => {
-    reload()
+    if (!activeQuarry?.id) {
+      setLoans([])
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    setLoading(true)
+    reload(activeQuarry.id)
       .catch((error) => {
-        message.error(errorMessage(error, 'Could not load loans') ?? 'Could not load loans')
+        if (!cancelled) {
+          message.error(errorMessage(error, 'Could not load loans') ?? 'Could not load loans')
+        }
       })
-      .finally(() => setLoading(false))
-  }, [reload])
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeQuarry?.id, reload])
+
+  const loansForQuarry = useCallback(
+    (quarryId: string, activeOnly = false) =>
+      loans.filter((row) => row.quarryId === quarryId && (!activeOnly || row.active)),
+    [loans],
+  )
 
   const getLoan = useCallback((id?: string | null) => loans.find((row) => row.id === id), [loans])
 
@@ -92,6 +115,7 @@ export function LoansProvider({ children }: { children: ReactNode }) {
     () => ({
       loans,
       loading,
+      loansForQuarry,
       getLoan,
       addLoan,
       updateLoanRecord,
@@ -99,7 +123,7 @@ export function LoansProvider({ children }: { children: ReactNode }) {
       markPaid,
       undoPaid,
     }),
-    [loans, loading, getLoan, addLoan, updateLoanRecord, removeLoan, markPaid, undoPaid],
+    [loans, loading, loansForQuarry, getLoan, addLoan, updateLoanRecord, removeLoan, markPaid, undoPaid],
   )
 
   return <LoansContext.Provider value={value}>{children}</LoansContext.Provider>

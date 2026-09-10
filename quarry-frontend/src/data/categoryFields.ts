@@ -93,12 +93,6 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
     types: ['Debit'],
     fields: [
       {
-        key: 'litres',
-        label: 'Litres',
-        required: true,
-        hint: 'Diesel quantity in litres',
-      },
-      {
         key: 'party',
         label: 'Supplier (optional)',
         required: false,

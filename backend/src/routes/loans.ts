@@ -14,6 +14,7 @@ const FINANCE_HEAD = 'Finance / EMI'
 const daySchema = z.number().int().min(1).max(31)
 
 const loanSchema = z.object({
+  quarryId: z.string().min(1, 'Quarry is required'),
   vehicleNo: z.string().trim().min(1, 'Vehicle / asset is required'),
   borrower: z.string().trim().optional().default(''),
   loanNo: z.string().trim().optional().default(''),
@@ -25,7 +26,7 @@ const loanSchema = z.object({
 })
 
 const paySchema = z.object({
-  quarryId: z.string().min(1),
+  quarryId: z.string().min(1).optional(),
   date: isoDateSchema,
   amount: z.number().positive('Amount required'),
 })
@@ -39,9 +40,11 @@ function withPayments(loan: Loan, payments: LoanPayment[]) {
 
 loansRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
+    const quarryId = typeof req.query.quarryId === 'string' ? req.query.quarryId : undefined
     const [loans, payments] = await Promise.all([
       Loan.findAll({
+        where: quarryId ? { quarryId } : undefined,
         order: [
           ['dueDay', 'ASC'],
           ['vehicleNo', 'ASC'],
@@ -85,6 +88,8 @@ loansRouter.post(
   asyncHandler(async (req, res) => {
     const parsed = loanSchema.safeParse(req.body)
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? parsed.error.message)
+    const quarry = await Quarry.findByPk(parsed.data.quarryId)
+    if (!quarry) return badRequest(res, 'Invalid quarryId')
     const loan = await Loan.create(parsed.data)
     res.status(201).json(withPayments(loan, []))
   }),
@@ -97,6 +102,10 @@ loansRouter.put(
     if (!loan) return notFound(res, 'Loan not found')
     const parsed = loanSchema.partial().safeParse(req.body)
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? parsed.error.message)
+    if (parsed.data.quarryId) {
+      const quarry = await Quarry.findByPk(parsed.data.quarryId)
+      if (!quarry) return badRequest(res, 'Invalid quarryId')
+    }
     await loan.update(parsed.data)
     const payments = await LoanPayment.findAll({
       where: { loanId: loan.id },
@@ -132,7 +141,12 @@ loansRouter.post(
     const parsed = paySchema.safeParse(req.body)
     if (!parsed.success) return badRequest(res, parsed.error.issues[0]?.message ?? parsed.error.message)
 
-    const quarry = await Quarry.findByPk(parsed.data.quarryId)
+    const quarryId = loan.quarryId || parsed.data.quarryId
+    if (!quarryId) return badRequest(res, 'Loan has no quarry')
+    if (parsed.data.quarryId && parsed.data.quarryId !== quarryId) {
+      return badRequest(res, 'EMI must be posted to the loan’s quarry')
+    }
+    const quarry = await Quarry.findByPk(quarryId)
     if (!quarry) return badRequest(res, 'Invalid quarryId')
 
     const ym = parsed.data.date.slice(0, 7)
@@ -150,7 +164,7 @@ loansRouter.post(
         const txn = await Transaction.create(
           {
             id: transactionId,
-            quarryId: parsed.data.quarryId,
+            quarryId,
             date: parsed.data.date,
             type: 'Debit',
             head: FINANCE_HEAD,
@@ -166,7 +180,7 @@ loansRouter.post(
           {
             id: paymentId,
             loanId: loan.id,
-            quarryId: parsed.data.quarryId,
+            quarryId,
             ym,
             date: parsed.data.date,
             amount: parsed.data.amount,

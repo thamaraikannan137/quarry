@@ -13,6 +13,8 @@ export type TransactionMeta = {
   paymentMethod?: string | null
   /** Linked EMI loan (Finance / Loan due board). */
   loanId?: string | null
+  /** Ledger entry this expense was paid from (owner → accounts / supervisor). */
+  ledgerId?: string | null
 }
 
 export type Transaction = {

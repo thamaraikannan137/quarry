@@ -15,6 +15,7 @@ export type DashboardSummary = {
   creditCount: number
   entries: number
   totalEntries: number
+  inLedgers: number
 }
 
 export type DashboardFlowPoint = {
@@ -29,6 +30,22 @@ export type DashboardCategory = {
   value: number
 }
 
+export type DashboardLedgerHolder = {
+  id: string
+  holderName: string
+  in: number
+  out: number
+  balance: number
+}
+
+export type DashboardLedgers = {
+  openCount: number
+  in: number
+  out: number
+  balance: number
+  holders: DashboardLedgerHolder[]
+}
+
 export type DashboardPayload = {
   quarryId: string
   quarryName: string
@@ -36,6 +53,7 @@ export type DashboardPayload = {
   periodLabel: string
   months: DashboardMonth[]
   summary: DashboardSummary
+  ledgers: DashboardLedgers
   monthlyFlow: DashboardFlowPoint[]
   categories: DashboardCategory[]
   recent: Transaction[]
@@ -45,12 +63,25 @@ export type DashboardPayload = {
   }
 }
 
+const EMPTY_LEDGERS: DashboardLedgers = {
+  openCount: 0,
+  in: 0,
+  out: 0,
+  balance: 0,
+  holders: [],
+}
+
 export async function getDashboard(quarryId: string, month = 'all') {
   const params = new URLSearchParams({ quarryId })
   if (month && month !== 'all') params.set('month', month)
   const payload = await api<DashboardPayload>(`/api/dashboard?${params.toString()}`)
   return {
     ...payload,
+    summary: {
+      ...payload.summary,
+      inLedgers: Number(payload.summary?.inLedgers) || Number(payload.ledgers?.balance) || 0,
+    },
+    ledgers: payload.ledgers ?? EMPTY_LEDGERS,
     recent: payload.recent.map((row) => ({ ...row, date: isoDateOnly(row.date) })),
   }
 }

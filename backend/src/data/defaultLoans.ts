@@ -17,11 +17,26 @@ export const DEFAULT_LOANS = [
   { id: 'ln13', vehicleNo: 'Housing Loan', borrower: 'Arun', loanNo: 'Lvb', informDay: 3, dueDay: 5, bank: 'LVB', emiAmount: 30000 },
 ] as const
 
+const DEFAULT_QUARRY_ID = 'q_chitha'
+
 export async function ensureDefaultLoans() {
   const existing = await Loan.findAll({ attributes: ['id'] })
   const have = new Set(existing.map((row) => row.id))
   for (const row of DEFAULT_LOANS) {
     if (have.has(row.id)) continue
-    await Loan.create({ ...row, active: true })
+    await Loan.create({ ...row, quarryId: DEFAULT_QUARRY_ID, active: true })
+  }
+
+  // Older seeded rows may predate quarry scoping
+  await Loan.update(
+    { quarryId: DEFAULT_QUARRY_ID },
+    { where: { quarryId: null as unknown as string } },
+  ).catch(() => undefined)
+
+  for (const row of DEFAULT_LOANS) {
+    const loan = await Loan.findByPk(row.id)
+    if (loan && !loan.quarryId) {
+      await loan.update({ quarryId: DEFAULT_QUARRY_ID })
+    }
   }
 }

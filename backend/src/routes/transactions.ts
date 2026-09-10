@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 
-import { BlockMarking, Customer, LoanPayment, Quarry, Transaction, Vendor } from '../db/models/index.js'
+import { BlockMarking, Ledger, Customer, LoanPayment, Quarry, Transaction, Vendor } from '../db/models/index.js'
 import { asyncHandler, badRequest, notFound, routeParam } from '../lib/http.js'
 import { isoDateSchema } from '../lib/isoDate.js'
 
@@ -23,6 +23,7 @@ const voucherSchema = z.object({
   refNote: z.string().optional().nullable(),
   markingBatchId: z.string().optional().nullable(),
   paymentMethod: z.string().optional().nullable(),
+  ledgerId: z.string().optional().nullable(),
 })
 
 function resolveAmounts(data: z.infer<typeof voucherSchema>) {
@@ -54,6 +55,7 @@ transactionsRouter.get(
       typeof req.query.markingBatchId === 'string' ? req.query.markingBatchId : undefined
     const head = typeof req.query.head === 'string' ? req.query.head : undefined
     const type = typeof req.query.type === 'string' ? req.query.type : undefined
+    const ledgerId = typeof req.query.ledgerId === 'string' ? req.query.ledgerId : undefined
 
     const where: Record<string, string> = {}
     if (quarryId) where.quarryId = quarryId
@@ -61,6 +63,7 @@ transactionsRouter.get(
     if (markingBatchId) where.markingBatchId = markingBatchId
     if (head) where.head = head
     if (type) where.type = type
+    if (ledgerId) where.ledgerId = ledgerId
 
     const rows = await Transaction.findAll({
       where,
@@ -109,6 +112,14 @@ transactionsRouter.post(
       if (!count) return badRequest(res, 'Invalid markingBatchId')
     }
 
+    if (parsed.data.ledgerId) {
+      const ledger = await Ledger.findByPk(parsed.data.ledgerId)
+      if (!ledger) return badRequest(res, 'Invalid ledgerId')
+      if (ledger.quarryId !== parsed.data.quarryId) {
+        return badRequest(res, 'Ledger entry belongs to a different quarry')
+      }
+    }
+
     const row = await Transaction.create({
       quarryId: parsed.data.quarryId,
       date: parsed.data.date,
@@ -124,6 +135,7 @@ transactionsRouter.post(
       refNote: parsed.data.refNote ?? null,
       markingBatchId: parsed.data.markingBatchId ?? null,
       paymentMethod: parsed.data.paymentMethod ?? null,
+      ledgerId: parsed.data.ledgerId ?? null,
     })
     res.status(201).json(row)
   }),
@@ -169,6 +181,15 @@ transactionsRouter.put(
       if (!(await assertPartyId(parsed.data.partyId))) return badRequest(res, 'Invalid partyId')
     }
 
+    if (parsed.data.ledgerId) {
+      const ledger = await Ledger.findByPk(parsed.data.ledgerId)
+      if (!ledger) return badRequest(res, 'Invalid ledgerId')
+      const quarryId = parsed.data.quarryId ?? existing.quarryId
+      if (ledger.quarryId !== quarryId) {
+        return badRequest(res, 'Ledger entry belongs to a different quarry')
+      }
+    }
+
     await existing.update({
       quarryId: parsed.data.quarryId,
       date: parsed.data.date,
@@ -184,6 +205,7 @@ transactionsRouter.put(
       refNote: parsed.data.refNote === undefined ? undefined : parsed.data.refNote,
       markingBatchId: parsed.data.markingBatchId === undefined ? undefined : parsed.data.markingBatchId,
       paymentMethod: parsed.data.paymentMethod === undefined ? undefined : parsed.data.paymentMethod,
+      ledgerId: parsed.data.ledgerId === undefined ? undefined : parsed.data.ledgerId,
     })
     res.json(existing)
   }),

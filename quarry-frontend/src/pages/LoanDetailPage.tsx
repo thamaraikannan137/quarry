@@ -141,6 +141,17 @@ export function LoanDetailPage() {
     return <div>Select a quarry to record EMI payments.</div>
   }
 
+  if (loan.quarryId !== activeQuarry.id) {
+    return (
+      <div>
+        <p>This loan belongs to another quarry. Switch site to view it.</p>
+        <Button type="primary" onClick={() => navigate('/finance')}>
+          Back to Finance / Loan
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="marking-page">
       <div className="page-head">
@@ -268,6 +279,8 @@ export function LoanDetailPage() {
 
       <LoanFormModal
         open={formOpen}
+        quarryId={activeQuarry.id}
+        quarryName={activeQuarry.name}
         initial={loan}
         onClose={() => setFormOpen(false)}
         onSave={async (draft) => {

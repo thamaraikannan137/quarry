@@ -5,6 +5,7 @@ import { sequelize } from '../sequelize.js'
 
 export interface LoanAttributes {
   id: string
+  quarryId: string
   vehicleNo: string
   borrower: string
   loanNo: string
@@ -19,11 +20,21 @@ export interface LoanAttributes {
 
 type LoanCreation = Optional<
   LoanAttributes,
-  'id' | 'borrower' | 'loanNo' | 'bank' | 'informDay' | 'dueDay' | 'emiAmount' | 'active' | 'createdAt' | 'updatedAt'
+  | 'id'
+  | 'borrower'
+  | 'loanNo'
+  | 'bank'
+  | 'informDay'
+  | 'dueDay'
+  | 'emiAmount'
+  | 'active'
+  | 'createdAt'
+  | 'updatedAt'
 >
 
 export class Loan extends Model<LoanAttributes, LoanCreation> implements LoanAttributes {
   declare id: string
+  declare quarryId: string
   declare vehicleNo: string
   declare borrower: string
   declare loanNo: string
@@ -39,6 +50,7 @@ export class Loan extends Model<LoanAttributes, LoanCreation> implements LoanAtt
 Loan.init(
   {
     id: { type: DataTypes.STRING, primaryKey: true },
+    quarryId: { type: DataTypes.STRING, allowNull: true },
     vehicleNo: { type: DataTypes.STRING, allowNull: false },
     borrower: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },
     loanNo: { type: DataTypes.STRING, allowNull: false, defaultValue: '' },

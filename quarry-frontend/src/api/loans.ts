@@ -20,6 +20,7 @@ function fromPayment(row: LoanPayment): LoanPayment {
 function fromLoan(row: ApiLoan): Loan {
   return {
     id: row.id,
+    quarryId: row.quarryId,
     vehicleNo: row.vehicleNo,
     borrower: row.borrower ?? '',
     loanNo: row.loanNo ?? '',
@@ -34,6 +35,7 @@ function fromLoan(row: ApiLoan): Loan {
 
 function toPayload(draft: LoanDraft) {
   return {
+    quarryId: draft.quarryId,
     vehicleNo: draft.vehicleNo.trim(),
     borrower: draft.borrower.trim(),
     loanNo: draft.loanNo.trim(),
@@ -45,8 +47,11 @@ function toPayload(draft: LoanDraft) {
   }
 }
 
-export async function listLoans() {
-  const rows = await api<ApiLoan[]>('/api/loans')
+export async function listLoans(quarryId?: string) {
+  const params = new URLSearchParams()
+  if (quarryId) params.set('quarryId', quarryId)
+  const suffix = params.toString() ? `?${params.toString()}` : ''
+  const rows = await api<ApiLoan[]>(`/api/loans${suffix}`)
   return rows.map(fromLoan)
 }
 

@@ -17,6 +17,7 @@ import {
   TeamOutlined,
   UserOutlined,
   UserSwitchOutlined,
+  WalletOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
 
@@ -29,6 +30,7 @@ const icons: Record<string, ReactNode> = {
   FileTextOutlined: <FileTextOutlined />,
   UserOutlined: <UserOutlined />,
   ShoppingCartOutlined: <ShoppingCartOutlined />,
+  WalletOutlined: <WalletOutlined />,
   CreditCardOutlined: <CreditCardOutlined />,
   GiftOutlined: <GiftOutlined />,
   BankOutlined: <BankOutlined />,

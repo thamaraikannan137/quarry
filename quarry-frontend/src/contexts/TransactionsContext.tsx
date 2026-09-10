@@ -9,6 +9,7 @@ import {
   updateTransactionApi,
 } from '@/api/transactions'
 import { EXPENSE_HEADS, isFinanceHead, isMachineryRentHead } from '@/data/expenseHeads'
+import { isLedgerBookHead } from '@/data/ledgerHeads'
 import type { Transaction, TxnType, VoucherDraft } from '@/types/transaction'
 
 const HEADS_KEY = 'quarry-heads-v1'
@@ -34,6 +35,7 @@ type TransactionsContextValue = {
   deleteTransaction: (id: string) => Promise<void>
   ingestTransaction: (row: Transaction) => void
   dropTransaction: (id: string) => void
+  refreshTransactions: () => Promise<void>
 }
 
 const TransactionsContext = createContext<TransactionsContextValue | null>(null)
@@ -61,7 +63,20 @@ function readStoredList(key: string): string[] {
 }
 
 function readHeads(transactions: Transaction[]): string[] {
-  return uniqueHeads([...EXPENSE_HEADS, ...readStoredList(HEADS_KEY), ...transactions.map((row) => row.head)])
+  return uniqueHeads([
+    ...EXPENSE_HEADS,
+    ...readStoredList(HEADS_KEY),
+    ...transactions.map((row) => row.head),
+  ]).filter((head) => !isLedgerBookHead(head))
+}
+
+function scrubStoredHeads() {
+  try {
+    const cleaned = uniqueHeads(readStoredList(HEADS_KEY)).filter((head) => !isLedgerBookHead(head))
+    localStorage.setItem(HEADS_KEY, JSON.stringify(cleaned))
+  } catch {
+    /* ignore */
+  }
 }
 
 function machineryFromTransactions(transactions: Transaction[]) {
@@ -82,6 +97,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     for (const key of LEGACY_KEYS) localStorage.removeItem(key)
+    scrubStoredHeads()
     listTransactions()
       .then((rows) => {
         setTransactions(rows)
@@ -94,6 +110,13 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       .finally(() => setLoading(false))
   }, [])
 
+  const refreshTransactions = useCallback(async () => {
+    const rows = await listTransactions()
+    setTransactions(rows)
+    setHeads(readHeads(rows))
+    setMachineryNames(readMachineryNames(rows))
+  }, [])
+
   useEffect(() => {
     localStorage.setItem(HEADS_KEY, JSON.stringify(heads))
   }, [heads])
@@ -104,7 +127,7 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
 
   const addHead = useCallback((name: string) => {
     const trimmed = name.trim()
-    if (!trimmed) return null
+    if (!trimmed || isLedgerBookHead(trimmed)) return null
     setHeads((current) => {
       if (current.some((head) => head.toLowerCase() === trimmed.toLowerCase())) return current
       return uniqueHeads([...current, trimmed])
@@ -164,8 +187,9 @@ export function TransactionsProvider({ children }: { children: ReactNode }) {
       deleteTransaction,
       ingestTransaction,
       dropTransaction,
+      refreshTransactions,
     }),
-    [transactions, loading, heads, machineryNames, addVoucher, updateTransaction, addHead, addMachineryName, deleteTransaction, ingestTransaction, dropTransaction],
+    [transactions, loading, heads, machineryNames, addVoucher, updateTransaction, addHead, addMachineryName, deleteTransaction, ingestTransaction, dropTransaction, refreshTransactions],
   )
 
   return <TransactionsContext.Provider value={value}>{children}</TransactionsContext.Provider>

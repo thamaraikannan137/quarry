@@ -3,6 +3,7 @@ import { BlockMarking } from './BlockMarking.js'
 import { Customer } from './Customer.js'
 import { DispatchTrip } from './DispatchTrip.js'
 import { DispatchTripBlock } from './DispatchTripBlock.js'
+import { Ledger } from './Ledger.js'
 import { Loan } from './Loan.js'
 import { LoanPayment } from './LoanPayment.js'
 import { Quarry } from './Quarry.js'
@@ -56,6 +57,13 @@ LoanPayment.belongsTo(Transaction, { foreignKey: 'transactionId' })
 Loan.hasMany(Transaction, { foreignKey: 'loanId' })
 Transaction.belongsTo(Loan, { foreignKey: 'loanId' })
 
+Quarry.hasMany(Ledger, { foreignKey: 'quarryId' })
+Ledger.belongsTo(Quarry, { foreignKey: 'quarryId' })
+Staff.hasMany(Ledger, { foreignKey: 'personId' })
+Ledger.belongsTo(Staff, { foreignKey: 'personId' })
+Ledger.hasMany(Transaction, { foreignKey: 'ledgerId' })
+Transaction.belongsTo(Ledger, { foreignKey: 'ledgerId' })
+
 export { sequelize } from '../sequelize.js'
 export {
   AttendanceMark,
@@ -63,6 +71,7 @@ export {
   Customer,
   DispatchTrip,
   DispatchTripBlock,
+  Ledger,
   Loan,
   LoanPayment,
   Quarry,
