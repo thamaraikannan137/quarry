@@ -1,8 +1,14 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import {
+  DownloadOutlined,
+  PlusOutlined,
+  PrinterOutlined,
+  SearchOutlined,
+} from '@ant-design/icons'
 import {
   Button,
   Card,
   Col,
+  Dropdown,
   Input,
   Row,
   Select,
@@ -13,6 +19,7 @@ import {
   message,
   theme,
 } from 'antd'
+import type { MenuProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState, type ReactNode } from 'react'
 
@@ -26,6 +33,11 @@ import { CREDIT_HEADS } from '@/data/expenseHeads'
 import { isLedgerBookHead } from '@/data/ledgerHeads'
 import type { Transaction, TxnType } from '@/types/transaction'
 import { formatDate, money, monthKey, monthLabel, compareByDateThenTime } from '@/utils/money'
+import {
+  exportRowsToExcel,
+  openPrintableTable,
+  type ExportColumn,
+} from '@/utils/tableExport'
 
 import '@/styles/marking.css'
 
@@ -179,6 +191,126 @@ export function TransactionsPage() {
     setSearch('')
     setColumnFilters(emptyColumnFilters)
   }
+
+  const exportColumns: ExportColumn<Transaction>[] = useMemo(
+    () => [
+      {
+        header: 'Date',
+        value: (row) => formatDate(row.date),
+        excelValue: (row) => row.date,
+      },
+      {
+        header: 'Type',
+        value: (row) => row.type,
+      },
+      {
+        header: 'Category',
+        value: (row) => row.head || '—',
+      },
+      {
+        header: 'Ledger',
+        value: (row) => getLedger(row.ledgerId)?.holderName || '—',
+      },
+      {
+        header: 'Description',
+        value: (row) => row.particulars || '—',
+      },
+      {
+        header: 'Debit',
+        value: (row) => (row.debit ? money(row.debit) : '—'),
+        excelValue: (row) => row.debit || '',
+        align: 'right',
+      },
+      {
+        header: 'Credit',
+        value: (row) => (row.credit ? money(row.credit) : '—'),
+        excelValue: (row) => row.credit || '',
+        align: 'right',
+      },
+    ],
+    [getLedger],
+  )
+
+  const filterContextLines = useMemo(() => {
+    const lines: string[] = []
+    lines.push(`Period: ${month === 'all' ? 'All months' : monthLabel(month)}`)
+    lines.push(`Type: ${typeFilter === 'all' ? 'All types' : typeFilter}`)
+    if (search.trim()) lines.push(`Search: ${search.trim()}`)
+    if (columnFilters.date) lines.push(`Date filter: ${columnFilters.date}`)
+    if (columnFilters.type) lines.push(`Column type: ${columnFilters.type}`)
+    if (columnFilters.head) lines.push(`Category: ${columnFilters.head}`)
+    if (columnFilters.ledger) {
+      const ledgerName =
+        getLedger(columnFilters.ledger)?.holderName ?? columnFilters.ledger
+      lines.push(`Ledger: ${ledgerName}`)
+    }
+    if (columnFilters.particulars) lines.push(`Description: ${columnFilters.particulars}`)
+    if (columnFilters.debit) lines.push(`Min debit: ${columnFilters.debit}`)
+    if (columnFilters.credit) lines.push(`Min credit: ${columnFilters.credit}`)
+    lines.push(`Entries: ${rows.length}`)
+    lines.push(`Credit ${money(credit)} · Debit ${money(debit)} · Balance ${money(balance)}`)
+    return lines
+  }, [
+    month,
+    typeFilter,
+    search,
+    columnFilters,
+    getLedger,
+    rows.length,
+    credit,
+    debit,
+    balance,
+  ])
+
+  const exportFilenameBase = useMemo(() => {
+    const quarrySlug = (activeQuarry?.name ?? 'quarry')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+    const period = month === 'all' ? 'all-months' : month
+    return `transactions-${quarrySlug}-${period}`
+  }, [activeQuarry?.name, month])
+
+  const handleExportExcel = () => {
+    exportRowsToExcel(rows, exportColumns, exportFilenameBase)
+    message.success(`Exported ${rows.length} entr${rows.length === 1 ? 'y' : 'ies'} to Excel`)
+  }
+
+  const handlePrintOrPdf = (mode: 'print' | 'pdf') => {
+    try {
+      openPrintableTable(
+        rows,
+        exportColumns,
+        {
+          title: 'Entry list',
+          subtitle: activeQuarry?.name
+            ? `Quarry: ${activeQuarry.name}`
+            : 'Quarry: —',
+          lines: filterContextLines,
+          filenameBase: exportFilenameBase,
+        },
+        { autoPrint: mode === 'print' },
+      )
+      if (mode === 'pdf') {
+        message.info('Use Print → Save as PDF in the new window')
+      }
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Could not open print window')
+    }
+  }
+
+  const exportMenuItems: MenuProps['items'] = [
+    {
+      key: 'excel',
+      label: 'Export to Excel',
+      onClick: handleExportExcel,
+    },
+    {
+      key: 'pdf',
+      label: 'Export to PDF',
+      onClick: () => handlePrintOrPdf('pdf'),
+    },
+  ]
 
   const columns: ColumnsType<Transaction> = [
     {
@@ -482,6 +614,12 @@ export function TransactionsPage() {
                 Clear filters
               </Button>
             )}
+            <Dropdown menu={{ items: exportMenuItems }} trigger={['click']}>
+              <Button icon={<DownloadOutlined />}>Export</Button>
+            </Dropdown>
+            <Button icon={<PrinterOutlined />} onClick={() => handlePrintOrPdf('print')}>
+              Print
+            </Button>
           </Space>
         }
       >
