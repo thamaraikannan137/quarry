@@ -20,6 +20,8 @@ export interface TransactionAttributes {
   refNote: string | null
   markingBatchId: string | null
   paymentMethod: string | null
+  loanId: string | null
+  ledgerId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -37,6 +39,8 @@ type TransactionCreation = Optional<
   | 'refNote'
   | 'markingBatchId'
   | 'paymentMethod'
+  | 'loanId'
+  | 'ledgerId'
   | 'createdAt'
   | 'updatedAt'
 >
@@ -60,6 +64,8 @@ export class Transaction
   declare refNote: string | null
   declare markingBatchId: string | null
   declare paymentMethod: string | null
+  declare loanId: string | null
+  declare ledgerId: string | null
   declare createdAt: Date
   declare updatedAt: Date
 }
@@ -81,6 +87,8 @@ Transaction.init(
     refNote: { type: DataTypes.STRING, allowNull: true },
     markingBatchId: { type: DataTypes.STRING, allowNull: true },
     paymentMethod: { type: DataTypes.STRING, allowNull: true },
+    loanId: { type: DataTypes.STRING, allowNull: true },
+    ledgerId: { type: DataTypes.STRING, allowNull: true },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE,
   },

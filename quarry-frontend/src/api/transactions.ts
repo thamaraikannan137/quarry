@@ -19,6 +19,8 @@ function fromApi(row: Transaction & { createdAt?: string }): Transaction {
     refNote: row.refNote ?? null,
     markingBatchId: row.markingBatchId ?? null,
     paymentMethod: row.paymentMethod ?? null,
+    loanId: row.loanId ?? null,
+    ledgerId: row.ledgerId ?? null,
     createdAt: row.createdAt ?? '',
   }
 }
@@ -45,6 +47,7 @@ export async function createTransaction(quarryId: string, type: TxnType, draft: 
       refNote: draft.refNote ?? null,
       markingBatchId: draft.markingBatchId ?? null,
       paymentMethod: draft.paymentMethod ?? null,
+      ledgerId: draft.ledgerId ?? null,
     }),
   })
   return fromApi(row)
@@ -66,6 +69,7 @@ export async function updateTransactionApi(id: string, type: TxnType, draft: Vou
       refNote: draft.refNote ?? null,
       markingBatchId: draft.markingBatchId ?? null,
       paymentMethod: draft.paymentMethod ?? null,
+      ledgerId: draft.ledgerId ?? null,
     }),
   })
   return fromApi(row)

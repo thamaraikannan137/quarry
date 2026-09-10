@@ -3,6 +3,7 @@ import { Button, Descriptions, Modal, Popconfirm, Space, Tag, Typography, messag
 import dayjs from 'dayjs'
 
 import { advanceLinkLabel } from '@/data/demoLinks'
+import { useLedgers } from '@/contexts/LedgersContext'
 import { useMarkings } from '@/contexts/MarkingsContext'
 import { useParties } from '@/contexts/PartiesContext'
 import { useStaff } from '@/contexts/StaffContext'
@@ -23,6 +24,7 @@ function extraNoteLabel(head: string) {
   const key = head.trim().toLowerCase()
   if (key === 'monthly gift') return 'Name'
   if (key === 'machinery rent') return 'Machinery name'
+  if (key === 'finance / emi' || key === 'finance / loan' || key === 'finance' || key === 'emi') return 'Machine'
   return 'Reference'
 }
 
@@ -38,6 +40,7 @@ export function TransactionDetail({
   const { getParty } = useParties()
   const { getBatch } = useMarkings()
   const { getStaff } = useStaff()
+  const { getLedger } = useLedgers()
   if (!transaction) return null
 
   const isCredit = transaction.type === 'Credit'
@@ -48,6 +51,7 @@ export function TransactionDetail({
     ? `${staff.name} · ${staff.designation || 'Staff'}`
     : advanceLinkLabel(transaction.personId, transaction.labourId)
   const marking = getBatch(transaction.markingBatchId)
+  const ledger = getLedger(transaction.ledgerId)
 
   return (
     <Modal
@@ -112,6 +116,11 @@ export function TransactionDetail({
           </Descriptions.Item>
         ) : null}
         {link ? <Descriptions.Item label="Linked to">{link}</Descriptions.Item> : null}
+        {ledger ? (
+          <Descriptions.Item label="Ledger">
+            {ledger.holderName} · given {money(ledger.amount)} · {formatDate(ledger.date)}
+          </Descriptions.Item>
+        ) : null}
         {transaction.litres ? (
           <Descriptions.Item label="Litres">{transaction.litres}</Descriptions.Item>
         ) : null}

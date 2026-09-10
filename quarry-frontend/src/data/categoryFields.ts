@@ -93,12 +93,6 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
     types: ['Debit'],
     fields: [
       {
-        key: 'litres',
-        label: 'Litres',
-        required: true,
-        hint: 'Diesel quantity in litres',
-      },
-      {
         key: 'party',
         label: 'Supplier (optional)',
         required: false,
@@ -172,6 +166,25 @@ export const CATEGORY_FIELD_RULES: CategoryFieldRule[] = [
         label: 'Reference',
         required: false,
         hint: 'Permit / DC / block ref',
+      },
+    ],
+  },
+  {
+    heads: ['Finance / EMI', 'Finance / Loan', 'Finance', 'EMI'],
+    types: ['Debit', 'Credit'],
+    fields: [
+      {
+        key: 'refNote',
+        label: 'Vehicle / asset',
+        required: true,
+        hint: 'Machine, vehicle or other asset this EMI is for',
+      },
+      {
+        key: 'party',
+        label: 'Financier',
+        required: false,
+        hint: 'Bank / finance company',
+        partySource: 'vendor',
       },
     ],
   },

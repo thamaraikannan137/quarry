@@ -37,7 +37,6 @@ export const PURCHASE_EXPENSE_HEADS = [
   'Vendor Payment',
   'Royalty',
   'Machinery Rent',
-  'Finance / EMI',
   'Monthly Gift',
   'Other',
 ] as const
@@ -52,6 +51,7 @@ const OTHER_MODULE_HEADS = new Set(
     'Monthly Gift',
     'Royalty',
     'Machinery Rent',
+    'Finance / EMI',
   ].map((name) => name.toLowerCase()),
 )
 
@@ -69,6 +69,11 @@ export function isRoyaltyHead(head: string) {
 
 export function isMachineryRentHead(head: string) {
   return head.trim().toLowerCase() === 'machinery rent'
+}
+
+export function isFinanceHead(head: string) {
+  const key = head.trim().toLowerCase()
+  return key === 'finance / emi' || key === 'finance / loan' || key === 'finance' || key === 'emi'
 }
 
 export function isSalaryAdvanceHead(head: string) {

@@ -3,6 +3,7 @@ import express from 'express'
 import type { NextFunction, Request, Response } from 'express'
 
 import { AttendanceMark, sequelize } from './db/models/index.js'
+import { ensureDefaultLoans } from './data/defaultLoans.js'
 import { ensureDefaultQuarries } from './data/defaultQuarries.js'
 import { ensureDefaultStaff } from './data/defaultStaff.js'
 import { ensureDefaultUsers } from './data/defaultUsers.js'
@@ -11,6 +12,8 @@ import { ensureDateColumns } from './lib/ensureDateColumns.js'
 import { ensureGstSettings } from './lib/ensureGstSettings.js'
 import { ensureMarkingNumbers } from './lib/markingNo.js'
 import { ensureSchema } from './lib/ensureSchema.js'
+import { ensureLedgers } from './lib/ensureLedgers.js'
+import { ensureLoans, ensureLoanQuarryScope } from './lib/ensureLoans.js'
 import { ensureSplitParties } from './lib/ensureSplitParties.js'
 import { logger, requestLogger } from './lib/logger.js'
 import { attendanceRouter } from './routes/attendance.js'
@@ -19,12 +22,14 @@ import { customersRouter } from './routes/customers.js'
 import { vendorsRouter } from './routes/vendors.js'
 import { dashboardRouter } from './routes/dashboard.js'
 import { loadsRouter } from './routes/loads.js'
+import { ledgersRouter } from './routes/ledgers.js'
 import { markingsRouter } from './routes/markings.js'
 import { quarriesRouter } from './routes/quarries.js'
 import { salaryRouter } from './routes/salary.js'
 import { staffRouter } from './routes/staff.js'
 import { transactionsRouter } from './routes/transactions.js'
 import { usersRouter } from './routes/users.js'
+import { loansRouter } from './routes/loans.js'
 
 const app = express()
 const port = Number(process.env.PORT || 4000)
@@ -52,6 +57,8 @@ app.get('/api', (_req, res) => {
       'GET|PUT /api/attendance',
       'GET /api/salary',
       'GET|POST|PUT|DELETE /api/transactions',
+      'GET|POST|PUT|DELETE /api/loans',
+      'GET|POST|PUT|DELETE /api/ledgers',
       'POST /api/auth/login',
       'GET|POST|PUT|DELETE /api/users',
     ],
@@ -68,6 +75,8 @@ app.use('/api/staff', staffRouter)
 app.use('/api/attendance', attendanceRouter)
 app.use('/api/salary', salaryRouter)
 app.use('/api/transactions', transactionsRouter)
+app.use('/api/loans', loansRouter)
+app.use('/api/ledgers', ledgersRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
 
@@ -79,6 +88,8 @@ app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
 
 async function main() {
   await sequelize.authenticate()
+  await ensureLoans()
+  await ensureLedgers()
   await ensureSchema()
   await ensureSplitParties()
   await AttendanceMark.update({ status: 'HalfDay' }, { where: { status: 'Holiday' } })
@@ -87,8 +98,10 @@ async function main() {
   await ensureGstSettings()
   await ensureDashboardIndexes()
   await ensureDefaultQuarries()
+  await ensureLoanQuarryScope()
   await ensureDefaultStaff()
   await ensureDefaultUsers()
+  await ensureDefaultLoans()
   app.listen(port, () => {
     logger.info(`Quarry API listening on http://localhost:${port}`)
   })

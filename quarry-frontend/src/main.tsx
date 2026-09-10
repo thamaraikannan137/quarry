@@ -4,7 +4,9 @@ import { BrowserRouter } from 'react-router'
 
 import App from '@/App'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { LedgersProvider } from '@/contexts/LedgersContext'
 import { DispatchProvider } from '@/contexts/DispatchContext'
+import { LoansProvider } from '@/contexts/LoansContext'
 import { MarkingsProvider } from '@/contexts/MarkingsContext'
 import { NavProvider } from '@/contexts/NavContext'
 import { PartiesProvider } from '@/contexts/PartiesContext'
@@ -24,13 +26,17 @@ createRoot(document.getElementById('root')!).render(
             <PartiesProvider>
               <StaffProvider>
                 <TransactionsProvider>
-                  <MarkingsProvider>
-                    <DispatchProvider>
-                      <NavProvider>
-                        <App />
-                      </NavProvider>
-                    </DispatchProvider>
-                  </MarkingsProvider>
+                  <LedgersProvider>
+                    <LoansProvider>
+                      <MarkingsProvider>
+                        <DispatchProvider>
+                          <NavProvider>
+                            <App />
+                          </NavProvider>
+                        </DispatchProvider>
+                      </MarkingsProvider>
+                    </LoansProvider>
+                  </LedgersProvider>
                 </TransactionsProvider>
               </StaffProvider>
             </PartiesProvider>

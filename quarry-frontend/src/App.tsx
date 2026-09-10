@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Route, Routes, useParams } from 'react-router'
 
 import { VerticalLayout } from '@/layouts/VerticalLayout'
 import { AddLoadPage } from '@/pages/AddLoadPage'
@@ -15,6 +15,10 @@ import { Login } from '@/pages/Login'
 import { MarkingDetailPage } from '@/pages/MarkingDetailPage'
 import { MarkingPage } from '@/pages/MarkingPage'
 import { GiftPage } from '@/pages/GiftPage'
+import { LedgerPage } from '@/pages/LedgerPage'
+import { LedgerDetailPage } from '@/pages/LedgerDetailPage'
+import { FinancePage } from '@/pages/FinancePage'
+import { LoanDetailPage } from '@/pages/LoanDetailPage'
 import { MachineryPage } from '@/pages/MachineryPage'
 import { MastersPage } from '@/pages/MastersPage'
 import { PlaceholderPage } from '@/pages/PlaceholderPage'
@@ -38,6 +42,8 @@ const READY_PATHS = new Set([
   '/marking',
   '/loads',
   '/purchase',
+  '/ledger',
+  '/finance',
   '/vendors',
   '/gift',
   '/royalty',
@@ -48,6 +54,11 @@ const READY_PATHS = new Set([
   '/masters',
   '/users',
 ])
+
+function RedirectLegacyCashFloatDetail() {
+  const { ledgerId } = useParams<{ ledgerId: string }>()
+  return <Navigate to={ledgerId ? `/ledger/${ledgerId}` : '/ledger'} replace />
+}
 
 export default function App() {
   const stubs = flattenNav().filter((item) => !READY_PATHS.has(item.path))
@@ -72,6 +83,12 @@ export default function App() {
           <Route path="/loads/:tripId/edit" element={<EditLoadPage />} />
           <Route path="/loads/:tripId" element={<LoadDetailPage />} />
           <Route path="/purchase" element={<PurchasePage />} />
+          <Route path="/ledger" element={<LedgerPage />} />
+          <Route path="/ledger/:ledgerId" element={<LedgerDetailPage />} />
+          <Route path="/cash-float" element={<Navigate to="/ledger" replace />} />
+          <Route path="/cash-float/:ledgerId" element={<RedirectLegacyCashFloatDetail />} />
+          <Route path="/finance" element={<FinancePage />} />
+          <Route path="/finance/:loanId" element={<LoanDetailPage />} />
           <Route path="/gift" element={<GiftPage />} />
           <Route path="/royalty" element={<RoyaltyPage />} />
           <Route path="/machinery" element={<MachineryPage />} />

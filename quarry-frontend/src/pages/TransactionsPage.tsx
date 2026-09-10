@@ -1,8 +1,14 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import {
+  DownloadOutlined,
+  PlusOutlined,
+  PrinterOutlined,
+  SearchOutlined,
+} from '@ant-design/icons'
 import {
   Button,
   Card,
   Col,
+  Dropdown,
   Input,
   Row,
   Select,
@@ -13,6 +19,7 @@ import {
   message,
   theme,
 } from 'antd'
+import type { MenuProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState, type ReactNode } from 'react'
 
@@ -20,15 +27,25 @@ import { DataTable, TableCard } from '@/components/common'
 import { TransactionDetail } from '@/components/transactions/TransactionDetail'
 import { VoucherDialog } from '@/components/transactions/VoucherDialog'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLedgers } from '@/contexts/LedgersContext'
 import { useTransactions } from '@/contexts/TransactionsContext'
 import { CREDIT_HEADS } from '@/data/expenseHeads'
+import { isLedgerBookHead } from '@/data/ledgerHeads'
 import type { Transaction, TxnType } from '@/types/transaction'
 import { formatDate, money, monthKey, monthLabel, compareByDateThenTime } from '@/utils/money'
+import {
+  exportRowsToExcel,
+  openPrintableTable,
+  type ExportColumn,
+} from '@/utils/tableExport'
+
+import '@/styles/marking.css'
 
 type ColumnFilters = {
   date: string
   type: string
   head: string
+  ledger: string
   particulars: string
   debit: string
   credit: string
@@ -38,6 +55,7 @@ const emptyColumnFilters: ColumnFilters = {
   date: '',
   type: '',
   head: '',
+  ledger: '',
   particulars: '',
   debit: '',
   credit: '',
@@ -75,6 +93,7 @@ export function TransactionsPage() {
   const { token } = theme.useToken()
   const { user, activeQuarry } = useAuth()
   const { transactions, heads, addVoucher, updateTransaction, addHead, deleteTransaction } = useTransactions()
+  const { ledgersForQuarry, getLedger } = useLedgers()
   const canEdit = user?.role !== 'Viewer'
 
   const [month, setMonth] = useState('all')
@@ -86,9 +105,20 @@ export function TransactionsPage() {
   const [selected, setSelected] = useState<Transaction | null>(null)
 
   const quarryRows = useMemo(
-    () => transactions.filter((row) => row.quarryId === activeQuarry?.id),
+    () =>
+      transactions.filter(
+        (row) => row.quarryId === activeQuarry?.id && !isLedgerBookHead(row.head),
+      ),
     [transactions, activeQuarry?.id],
   )
+
+  const cashWithHolders = useMemo(() => {
+    if (!activeQuarry) return 0
+    return ledgersForQuarry(activeQuarry.id, 'open').reduce(
+      (sum, row) => sum + (Number(row.balance) || 0),
+      0,
+    )
+  }, [activeQuarry, ledgersForQuarry])
 
   const months = useMemo(
     () => [...new Set(quarryRows.map((row) => monthKey(row.date)))].sort().reverse(),
@@ -100,13 +130,26 @@ export function TransactionsPage() {
     [quarryRows],
   )
 
+  const ledgerOptions = useMemo(() => {
+    if (!activeQuarry) return []
+    return ledgersForQuarry(activeQuarry.id)
+      .map((row) => ({ value: row.id, label: row.holderName }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [activeQuarry, ledgersForQuarry])
+
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     return quarryRows
       .filter((row) => {
+      const ledgerName = getLedger(row.ledgerId)?.holderName ?? ''
       if (month !== 'all' && monthKey(row.date) !== month) return false
       if (typeFilter !== 'all' && row.type !== typeFilter) return false
-      if (q && !`${row.particulars} ${row.head} ${row.date} ${row.type}`.toLowerCase().includes(q)) {
+      if (
+        q &&
+        !`${row.particulars} ${row.head} ${row.date} ${row.type} ${ledgerName}`
+          .toLowerCase()
+          .includes(q)
+      ) {
         return false
       }
       if (columnFilters.date && !row.date.includes(columnFilters.date.trim()) && !formatDate(row.date).toLowerCase().includes(columnFilters.date.trim().toLowerCase())) {
@@ -114,6 +157,7 @@ export function TransactionsPage() {
       }
       if (columnFilters.type && row.type !== columnFilters.type) return false
       if (columnFilters.head && row.head !== columnFilters.head) return false
+      if (columnFilters.ledger && row.ledgerId !== columnFilters.ledger) return false
       if (
         columnFilters.particulars &&
         !row.particulars.toLowerCase().includes(columnFilters.particulars.toLowerCase().trim())
@@ -125,7 +169,7 @@ export function TransactionsPage() {
       return true
     })
       .sort((a, b) => compareByDateThenTime(b, a))
-  }, [quarryRows, month, typeFilter, search, columnFilters])
+  }, [quarryRows, month, typeFilter, search, columnFilters, getLedger])
 
   const selectedRow = selected ? (transactions.find((row) => row.id === selected.id) ?? null) : null
 
@@ -147,6 +191,126 @@ export function TransactionsPage() {
     setSearch('')
     setColumnFilters(emptyColumnFilters)
   }
+
+  const exportColumns: ExportColumn<Transaction>[] = useMemo(
+    () => [
+      {
+        header: 'Date',
+        value: (row) => formatDate(row.date),
+        excelValue: (row) => row.date,
+      },
+      {
+        header: 'Type',
+        value: (row) => row.type,
+      },
+      {
+        header: 'Category',
+        value: (row) => row.head || '—',
+      },
+      {
+        header: 'Ledger',
+        value: (row) => getLedger(row.ledgerId)?.holderName || '—',
+      },
+      {
+        header: 'Description',
+        value: (row) => row.particulars || '—',
+      },
+      {
+        header: 'Debit',
+        value: (row) => (row.debit ? money(row.debit) : '—'),
+        excelValue: (row) => row.debit || '',
+        align: 'right',
+      },
+      {
+        header: 'Credit',
+        value: (row) => (row.credit ? money(row.credit) : '—'),
+        excelValue: (row) => row.credit || '',
+        align: 'right',
+      },
+    ],
+    [getLedger],
+  )
+
+  const filterContextLines = useMemo(() => {
+    const lines: string[] = []
+    lines.push(`Period: ${month === 'all' ? 'All months' : monthLabel(month)}`)
+    lines.push(`Type: ${typeFilter === 'all' ? 'All types' : typeFilter}`)
+    if (search.trim()) lines.push(`Search: ${search.trim()}`)
+    if (columnFilters.date) lines.push(`Date filter: ${columnFilters.date}`)
+    if (columnFilters.type) lines.push(`Column type: ${columnFilters.type}`)
+    if (columnFilters.head) lines.push(`Category: ${columnFilters.head}`)
+    if (columnFilters.ledger) {
+      const ledgerName =
+        getLedger(columnFilters.ledger)?.holderName ?? columnFilters.ledger
+      lines.push(`Ledger: ${ledgerName}`)
+    }
+    if (columnFilters.particulars) lines.push(`Description: ${columnFilters.particulars}`)
+    if (columnFilters.debit) lines.push(`Min debit: ${columnFilters.debit}`)
+    if (columnFilters.credit) lines.push(`Min credit: ${columnFilters.credit}`)
+    lines.push(`Entries: ${rows.length}`)
+    lines.push(`Credit ${money(credit)} · Debit ${money(debit)} · Balance ${money(balance)}`)
+    return lines
+  }, [
+    month,
+    typeFilter,
+    search,
+    columnFilters,
+    getLedger,
+    rows.length,
+    credit,
+    debit,
+    balance,
+  ])
+
+  const exportFilenameBase = useMemo(() => {
+    const quarrySlug = (activeQuarry?.name ?? 'quarry')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+    const period = month === 'all' ? 'all-months' : month
+    return `transactions-${quarrySlug}-${period}`
+  }, [activeQuarry?.name, month])
+
+  const handleExportExcel = () => {
+    exportRowsToExcel(rows, exportColumns, exportFilenameBase)
+    message.success(`Exported ${rows.length} entr${rows.length === 1 ? 'y' : 'ies'} to Excel`)
+  }
+
+  const handlePrintOrPdf = (mode: 'print' | 'pdf') => {
+    try {
+      openPrintableTable(
+        rows,
+        exportColumns,
+        {
+          title: 'Entry list',
+          subtitle: activeQuarry?.name
+            ? `Quarry: ${activeQuarry.name}`
+            : 'Quarry: —',
+          lines: filterContextLines,
+          filenameBase: exportFilenameBase,
+        },
+        { autoPrint: mode === 'print' },
+      )
+      if (mode === 'pdf') {
+        message.info('Use Print → Save as PDF in the new window')
+      }
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Could not open print window')
+    }
+  }
+
+  const exportMenuItems: MenuProps['items'] = [
+    {
+      key: 'excel',
+      label: 'Export to Excel',
+      onClick: handleExportExcel,
+    },
+    {
+      key: 'pdf',
+      label: 'Export to PDF',
+      onClick: () => handlePrintOrPdf('pdf'),
+    },
+  ]
 
   const columns: ColumnsType<Transaction> = [
     {
@@ -221,6 +385,35 @@ export function TransactionsPage() {
       sorter: (a, b) => a.head.localeCompare(b.head),
       width: 180,
       ellipsis: true,
+    },
+    {
+      title: (
+        <ColumnTitle label="Ledger">
+          <Select
+            size="small"
+            allowClear
+            showSearch
+            placeholder="All"
+            style={{ width: '100%' }}
+            value={columnFilters.ledger || undefined}
+            options={ledgerOptions}
+            onChange={(value) => setColumnFilter('ledger', value ?? '')}
+            onClick={(event) => event.stopPropagation()}
+            filterOption={(input, option) =>
+              String(option?.label ?? '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+          />
+        </ColumnTitle>
+      ),
+      dataIndex: 'ledgerId',
+      key: 'ledger',
+      width: 160,
+      ellipsis: true,
+      sorter: (a, b) =>
+        (getLedger(a.ledgerId)?.holderName ?? '').localeCompare(getLedger(b.ledgerId)?.holderName ?? ''),
+      render: (_value, row) => getLedger(row.ledgerId)?.holderName || '—',
     },
     {
       title: (
@@ -333,8 +526,8 @@ export function TransactionsPage() {
         )}
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={12} md={6}>
+      <Row gutter={[12, 12]} className="page-stats-row">
+        <Col xs={12} sm={8} flex="1 1 140px">
           <Card size="small">
             <Statistic
               title="Credit"
@@ -344,7 +537,7 @@ export function TransactionsPage() {
             />
           </Card>
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={12} sm={8} flex="1 1 140px">
           <Card size="small">
             <Statistic
               title="Debit"
@@ -354,7 +547,7 @@ export function TransactionsPage() {
             />
           </Card>
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={12} sm={8} flex="1 1 140px">
           <Card size="small">
             <Statistic
               title="Balance"
@@ -364,7 +557,17 @@ export function TransactionsPage() {
             />
           </Card>
         </Col>
-        <Col xs={12} md={6}>
+        <Col xs={12} sm={8} flex="1 1 140px">
+          <Card size="small">
+            <Statistic
+              title="In ledgers"
+              value={cashWithHolders}
+              formatter={(value) => money(Number(value))}
+              styles={{ content: { color: cashWithHolders > 0.5 ? '#d48806' : '#389e0d' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} flex="1 1 140px">
           <Card size="small">
             <Statistic
               title="Total entries"
@@ -411,6 +614,12 @@ export function TransactionsPage() {
                 Clear filters
               </Button>
             )}
+            <Dropdown menu={{ items: exportMenuItems }} trigger={['click']}>
+              <Button icon={<DownloadOutlined />}>Export</Button>
+            </Dropdown>
+            <Button icon={<PrinterOutlined />} onClick={() => handlePrintOrPdf('print')}>
+              Print
+            </Button>
           </Space>
         }
       >
